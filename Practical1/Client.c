@@ -42,8 +42,10 @@ struct gameData parseDataFromServer(char buf[msgSize]);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
 struct move getMoveFromInput();
-int sendall(int s, char *buf, int *len);
-
+int sendAll(int s, char *buf, int *len);
+int receiveAll(int s, char *buf, int *len);
+ void checkForZeroValue(int num);
+ 
 int main(int argc, char const *argv[])
 { 
 	printf("Client Started\n");
@@ -84,8 +86,7 @@ int main(int argc, char const *argv[])
 		m = getMoveFromInput();
 		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(sendall(sock, buf, &msgSize) == 0){
-			printf("Disconnected from server\n");
+		if(sendAll(sock, buf, &msgSize) == -1){
 			exit(0);
 		}
 		game = receiveDataFromServer(sock);
@@ -161,7 +162,7 @@ struct move getMoveFromInput(){
 
 	sscanf(cmd,"%c %d", &heapC, &reduce);
 	heap = (int)heapC - (int)'A';
-	if (reduce < 0 || reduce > 3)
+	if (heap < 0 || heap > 3)
 	{
 		 printf("Illegal input!!!\n");
 		 exit(1);
@@ -178,16 +179,12 @@ struct gameData receiveDataFromServer(int sock)
 {
 	char buf[msgSize];
 	struct gameData game;
-	int rec = recv(sock, &buf, msgSize, 0);
+	int rec = receiveAll(sock, buf, &msgSize);
 
 	if (rec == -1)
 	{
 		fprintf(stderr, "failed to receive initial data\n");
     	exit(2);
-	}
-	if (rec == 0)
-	{
-		printf("Disconnected from server\n");
 	}
 
 	game = parseDataFromServer(buf);
@@ -230,13 +227,14 @@ struct gameData parseDataFromServer(char buf[msgSize]){
 }
 
 
-int sendall(int s, char *buf, int *len) {
+int sendAll(int s, char *buf, int *len) {
 	int total = 0; /* how many bytes we've sent */
 	int bytesleft = *len; /* how many we have left to send */
    	int n;
 	
 	while(total < *len) {
 			n = send(s, buf+total, bytesleft, 0);
+			checkForZeroValue(n);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -246,13 +244,14 @@ int sendall(int s, char *buf, int *len) {
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
- int receiveAll(int s, char *buf, size_t *len) {
+ int receiveAll(int s, char *buf, int *len) {
  	int total = 0; /* how many bytes we've received */
  	size_t bytesleft = *len; /* how many we have left to receive */
     int n;
 	
 	while(total < *len) {
 			n = recv(s, buf+total, bytesleft, 0);
+			checkForZeroValue(n);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -261,3 +260,10 @@ int sendall(int s, char *buf, int *len) {
 	  	
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }
+
+ void checkForZeroValue(int num){
+	if(num==0){
+		printf( "Disconnected from server\n");
+		exit(1);
+	}
+}

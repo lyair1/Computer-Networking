@@ -127,13 +127,10 @@ int main(int argc, char** argv){
 	while(1){
 		errorIndicator = sendAll(sock, buf, &MSG_SIZE);
 		checkForNegativeValue(errorIndicator, "send");
-		checkForZeroValue(errorIndicator);
-
 
 		errorIndicator = receiveAll(sock, buf, &MSG_SIZE);
 		printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
 		checkForNegativeValue(errorIndicator, "recv");
-		checkForZeroValue(errorIndicator);
 
 		sscanf(buf, "%d$%d", &clientMove.heap, &clientMove.amount);
 
@@ -283,6 +280,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = send(s, buf+total, bytesleft, 0);
+			checkForZeroValue(n);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -299,6 +297,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = recv(s, buf+total, bytesleft, 0);
+			checkForZeroValue(n);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
