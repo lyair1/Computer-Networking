@@ -45,7 +45,7 @@ struct move getMoveFromInput();
 int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
  void checkForZeroValue(int num);
- 
+
 int main(int argc, char const *argv[])
 { 
 	printf("Client Started\n");
@@ -208,10 +208,10 @@ void printWinner(struct gameData game)
 {
 	if (game.win == 1)
 	{
-		printf("I win!\n");
+		printf("You win!\n");
 	}else if (game.win == 2)
 	{
-		printf("You win!\n");
+		printf("I win!\n");
 	}	
 }
 
