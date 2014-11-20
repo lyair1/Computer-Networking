@@ -146,7 +146,7 @@ int main(int argc, char** argv){
 			game.win=1;
 		}
 
-		else if(game.valid){
+		else{
 			RemoveOnePieceFromBiggestHeap(&game);
 			if(IsBoardClear(game)){
 				// server win
@@ -229,20 +229,20 @@ void RemoveOnePieceFromBiggestHeap(struct gameData* game){
 	int maxHeap;
 	maxHeap = MaxNum(game->heapA, game->heapB,game->heapC ,game->heapD);
 
-	if(maxHeap == game->heapA){
-		game->heapA-=1;
-		return;
-	}
-	if(maxHeap == game->heapB){
-		game->heapB-=1;
+	if(maxHeap == game->heapD){
+		game->heapD-=1;
 		return;
 	}
 	if(maxHeap == game->heapC){
 		game->heapC-=1;
 		return;
 	}
-	if(maxHeap == game->heapD){
-		game->heapD-=1;
+	if(maxHeap == game->heapB){
+		game->heapB-=1;
+		return;
+	}
+	if(maxHeap == game->heapA){
+		game->heapA-=1;
 		return;
 	}
 }
