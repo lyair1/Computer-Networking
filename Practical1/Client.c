@@ -44,7 +44,8 @@ void printValid(struct gameData game);
 struct move getMoveFromInput();
 int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
-
+ void checkForZeroValue(int num);
+ 
 int main(int argc, char const *argv[])
 { 
 	printf("Client Started\n");
@@ -85,8 +86,7 @@ int main(int argc, char const *argv[])
 		m = getMoveFromInput();
 		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(sendAll(sock, buf, &msgSize) == 0){
-			printf("Disconnected from server\n");
+		if(sendAll(sock, buf, &msgSize) == -1){
 			exit(0);
 		}
 		game = receiveDataFromServer(sock);
@@ -186,10 +186,6 @@ struct gameData receiveDataFromServer(int sock)
 		fprintf(stderr, "failed to receive initial data\n");
     	exit(2);
 	}
-	if (rec == 0)
-	{
-		printf("Disconnected from server\n");
-	}
 
 	game = parseDataFromServer(buf);
 
@@ -238,6 +234,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = send(s, buf+total, bytesleft, 0);
+			checkForZeroValue(n);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -254,6 +251,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = recv(s, buf+total, bytesleft, 0);
+			checkForZeroValue(n);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -262,3 +260,10 @@ int sendAll(int s, char *buf, int *len) {
 	  	
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }
+
+ void checkForZeroValue(int num){
+	if(num==0){
+		printf( "Disconnected from server\n");
+		exit(1);
+	}
+}
