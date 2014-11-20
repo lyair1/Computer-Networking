@@ -219,7 +219,7 @@ void checkForNegativeValue(int num, char* func){
 
 void checkForZeroValue(int num){
 	if(num==0){
-		printf( "Disconnected from server\n");
+		printf( "Disconnected from Client\n");
 		exit(1);
 	}
 }
