@@ -42,6 +42,7 @@ struct gameData parseDataFromServer(char buf[msgSize]);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
 struct move getMoveFromInput();
+int sendall(int s, char *buf, int *len);
 
 int main(int argc, char const *argv[])
 { 
@@ -75,7 +76,7 @@ int main(int argc, char const *argv[])
 		m = getMoveFromInput();
 		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(send(sock, buf, msgSize, 0) == 0){
+		if(sendall(sock, buf, &msgSize) == 0){
 			printf("Disconnected from server\n");
 			exit(0);
 		}
@@ -144,6 +145,12 @@ struct move getMoveFromInput(){
 	printf("Your turn:\n");
 
 	fgets(cmd,10,stdin);
+	// Exit if user put Q
+	if (strcmp(cmd,"Q") == 0)
+	{
+		exit(0);
+	}
+
 	sscanf(cmd,"%c %d", &heapC, &reduce);
 	heap = (int)heapC - (int)'A';
 	if (reduce < 0 || reduce > 3)
@@ -228,7 +235,7 @@ int sendall(int s, char *buf, int *len) {
 	  	}
 	*len = total; /* return number actually sent here */
 	  	
-	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
 // char* receiveAll(int s, char *buf, size_t *len) {
