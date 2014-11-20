@@ -189,7 +189,7 @@ struct gameData receiveDataFromServer(int sock)
 
 	game = parseDataFromServer(buf);
 
-	printf("Data Received from server: %s\n",buf);
+	//printf("Data Received from server: %s\n",buf);
 
 	return game;
 }

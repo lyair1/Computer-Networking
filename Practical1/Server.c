@@ -129,7 +129,7 @@ int main(int argc, char** argv){
 		checkForNegativeValue(errorIndicator, "send");
 
 		errorIndicator = receiveAll(sock, buf, &MSG_SIZE);
-		printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
+		//printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
 		checkForNegativeValue(errorIndicator, "recv");
 
 		sscanf(buf, "%d$%d", &clientMove.heap, &clientMove.amount);
