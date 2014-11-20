@@ -42,7 +42,7 @@ struct gameData parseDataFromServer(char buf[msgSize]);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
 struct move getMoveFromInput();
-int sendall(int s, char *buf, int *len);
+int sendAll(int s, char *buf, int *len);
 
 int main(int argc, char const *argv[])
 { 
@@ -84,7 +84,7 @@ int main(int argc, char const *argv[])
 		m = getMoveFromInput();
 		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(sendall(sock, buf, &msgSize) == 0){
+		if(sendAll(sock, buf, &msgSize) == 0){
 			printf("Disconnected from server\n");
 			exit(0);
 		}
@@ -230,7 +230,7 @@ struct gameData parseDataFromServer(char buf[msgSize]){
 }
 
 
-int sendall(int s, char *buf, int *len) {
+int sendAll(int s, char *buf, int *len) {
 	int total = 0; /* how many bytes we've sent */
 	int bytesleft = *len; /* how many we have left to send */
    	int n;
