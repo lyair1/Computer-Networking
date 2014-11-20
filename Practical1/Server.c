@@ -40,16 +40,17 @@ int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
 int MaxNum(int a, int b, int c, int d);
+void CheckAndMakeClientMove(struct gameData * game, struct move clientMove);
 
 int main(int argc, char** argv){
-	int sock,sin_size, errorIndicator;
-	struct sockaddr_in myaddr ,sockaddr ;
-	struct sockaddr their_addr, addrBind;
+	int sock, errorIndicator;
+	struct sockaddr_in myaddr  ;
+	struct sockaddr addrBind;
 	struct in_addr inAddr;
-	struct socklen_t *addrlen;
+	/*struct socklen_t *addrlen;*/
 	char buf[1024];
 
-	int isMis,port =6325,M;
+	int port =6325,M;
 	struct gameData game;
 	struct move clientMove;
 
@@ -106,9 +107,10 @@ int main(int argc, char** argv){
 	checkForNegativeValue(errorIndicator, "listen");
 	printf("Succesfully started listening: %d\n", sock);
 
-	sin_size = sizeof(struct sockaddr_in);
+	/*sin_size = sizeof(struct sockaddr_in);*/
 
-	socklen_t var = sizeof(their_addr);
+	/*socklen_t var = sizeof(their_addr);*/
+
 	printf("Trying to accept\n");
 	sock = accept(sock, (struct sockaddr*)NULL, NULL );
 	checkForNegativeValue(sock, "accept");
@@ -135,7 +137,7 @@ int main(int argc, char** argv){
 			game.valid=0;
 		}
 		else{
-			CheckAndMakeClientMove(clientMove, &game);
+			CheckAndMakeClientMove(&game, clientMove);
 		}
 
 		if(IsBoardClear(game)){
@@ -156,7 +158,8 @@ int main(int argc, char** argv){
 
 }
 
-void CheckAndMakeClientMove(struct gameData game, struct move * clientMove){
+void CheckAndMakeClientMove(struct gameData * game, struct move clientMove){
+
 	switch(clientMove.heap){
 		case(0):
 			if(game->heapA < clientMove.amount){

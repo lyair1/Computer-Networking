@@ -137,7 +137,6 @@ int connectToServer(int sock){
 }
 
 struct move getMoveFromInput(){
-	char buf[msgSize];
 	int heap, reduce;
 	char heapC;
 	char cmd[10];
