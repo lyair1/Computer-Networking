@@ -33,19 +33,28 @@ struct move{
 	int amount;
 };
 
-int msgSize = 1024;
+int msgSize = 50;
 
-int connectToServer(int sock);
+int connectToServer(int sock, const char* address, char* port);
 void printGameState(struct gameData game);
 void printWinner(struct gameData game);
 struct gameData parseDataFromServer(char buf[msgSize]);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
 struct move getMoveFromInput();
+int sendall(int s, char *buf, int *len);
 
 int main(int argc, char const *argv[])
 { 
 	printf("Client Started\n");
+	char port[20];
+
+	assert(argc > 1 && argc < 4);
+
+	if (argc == 2)
+	{
+		strcpy(port,"6325");
+	}
 
 	// Get socket
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -57,7 +66,7 @@ int main(int argc, char const *argv[])
 	printf("Succesfully got a socket number: %d\n", sock);
 
 	// Connect to server
-	sock = connectToServer(sock);
+	sock = connectToServer(sock, argv[1], port);
 	
 	char buf[msgSize];
 	struct move m;
@@ -75,7 +84,7 @@ int main(int argc, char const *argv[])
 		m = getMoveFromInput();
 		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(send(sock, buf, msgSize, 0) == 0){
+		if(sendall(sock, buf, &msgSize) == 0){
 			printf("Disconnected from server\n");
 			exit(0);
 		}
@@ -92,14 +101,14 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
-int connectToServer(int sock){
+int connectToServer(int sock, const char* address, char* port){
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET; // use AF_INET6 to force IPv6
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo("192.168.1.15", "6325", &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(address, "6325", &hints, &servinfo)) != 0) {
 	//if ((rv = getaddrinfo("nova.cs.tau.ac.il", "6325", &hints, &servinfo)) != 0) {
     	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     	exit(1);
@@ -144,6 +153,12 @@ struct move getMoveFromInput(){
 	printf("Your turn:\n");
 
 	fgets(cmd,10,stdin);
+	// Exit if user put Q
+	if (strcmp(cmd,"Q") == 0)
+	{
+		exit(0);
+	}
+
 	sscanf(cmd,"%c %d", &heapC, &reduce);
 	heap = (int)heapC - (int)'A';
 	if (reduce < 0 || reduce > 3)
@@ -228,7 +243,7 @@ int sendall(int s, char *buf, int *len) {
 	  	}
 	*len = total; /* return number actually sent here */
 	  	
-	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
  int receiveAll(int s, char *buf, size_t *len) {
