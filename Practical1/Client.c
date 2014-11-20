@@ -162,7 +162,7 @@ struct move getMoveFromInput(){
 
 	sscanf(cmd,"%c %d", &heapC, &reduce);
 	heap = (int)heapC - (int)'A';
-	if (reduce < 0 || reduce > 3)
+	if (heap < 0 || heap > 3)
 	{
 		 printf("Illegal input!!!\n");
 		 exit(1);
