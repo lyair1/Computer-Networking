@@ -43,6 +43,7 @@ struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
 struct move getMoveFromInput();
 int sendAll(int s, char *buf, int *len);
+int receiveAll(int s, char *buf, int *len);
 
 int main(int argc, char const *argv[])
 { 
@@ -178,7 +179,7 @@ struct gameData receiveDataFromServer(int sock)
 {
 	char buf[msgSize];
 	struct gameData game;
-	int rec = recv(sock, &buf, msgSize, 0);
+	int rec = receiveAll(sock, buf, &msgSize);
 
 	if (rec == -1)
 	{
@@ -246,7 +247,7 @@ int sendAll(int s, char *buf, int *len) {
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
- int receiveAll(int s, char *buf, size_t *len) {
+ int receiveAll(int s, char *buf, int *len) {
  	int total = 0; /* how many bytes we've received */
  	size_t bytesleft = *len; /* how many we have left to receive */
     int n;
