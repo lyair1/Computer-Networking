@@ -18,6 +18,8 @@
 //Working with errno to report errors
 #include <errno.h>
 
+int MSG_SIZE=50;
+
 struct gameData{
 	int valid;
 	int win;
@@ -41,6 +43,8 @@ int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
 int MaxNum(int a, int b, int c, int d);
 void CheckAndMakeClientMove(struct gameData * game, struct move clientMove);
+int sendAll(int s, char *buf, int *len);
+int receiveAll(int s, char *buf, int *len);
 
 int main(int argc, char** argv){
 	int sock, errorIndicator;
@@ -48,7 +52,7 @@ int main(int argc, char** argv){
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
 	/*struct socklen_t *addrlen;*/
-	char buf[1024];
+	char buf[MSG_SIZE];
 
 	int port =6325,M;
 	struct gameData game;
@@ -121,12 +125,12 @@ int main(int argc, char** argv){
 
 	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	while(1){
-		errorIndicator = send(sock, buf, 1024 ,0);
+		errorIndicator = sendAll(sock, buf, &MSG_SIZE);
 		checkForNegativeValue(errorIndicator, "send");
 		checkForZeroValue(errorIndicator);
 
 
-		errorIndicator = recv(sock, &buf, 1024 ,0);
+		errorIndicator = receiveAll(sock, buf, &MSG_SIZE);
 		printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
 		checkForNegativeValue(errorIndicator, "recv");
 		checkForZeroValue(errorIndicator);
@@ -270,3 +274,36 @@ int IsBoardClear(struct gameData game){
 				game.heapC==0 &&
 				game.heapD==0   );
 }
+
+
+int sendAll(int s, char *buf, int *len) {
+	int total = 0; /* how many bytes we've sent */
+	int bytesleft = *len; /* how many we have left to send */
+   	int n;
+	
+	while(total < *len) {
+			n = send(s, buf+total, bytesleft, 0);
+			if (n == -1) { break; }
+			total += n;
+			bytesleft -= n;
+	  	}
+	*len = total; /* return number actually sent here */
+	  	
+	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+}
+
+ int receiveAll(int s, char *buf, int *len) {
+ 	int total = 0; /* how many bytes we've received */
+ 	size_t bytesleft = *len; /* how many we have left to receive */
+    int n;
+	
+	while(total < *len) {
+			n = recv(s, buf+total, bytesleft, 0);
+			if (n == -1) { break; }
+			total += n;
+			bytesleft -= n;
+	  	}
+	*len = total; /* return number actually sent here */
+	  	
+	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+ }

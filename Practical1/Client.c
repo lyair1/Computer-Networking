@@ -231,19 +231,18 @@ int sendall(int s, char *buf, int *len) {
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
-// char* receiveAll(int s, char *buf, size_t *len) {
-// 	int total = 0; /* how many bytes we've received */
-// 	size_t bytesleft = *len; /* how many we have left to receive */
-//    	int n;
-//    	char data[*len];
+ int receiveAll(int s, char *buf, size_t *len) {
+ 	int total = 0; /* how many bytes we've received */
+ 	size_t bytesleft = *len; /* how many we have left to receive */
+    int n;
 	
-// 	while(total < *len) {
-// 		n = recv(s, &data+total, bytesleft, 0);
-// 		if (n == -1) { break; }
-// 		total += n;
-// 		bytesleft -= n;
-// 	}
-// 	*len = total; /* return number actually received here */
+	while(total < *len) {
+			n = recv(s, buf+total, bytesleft, 0);
+			if (n == -1) { break; }
+			total += n;
+			bytesleft -= n;
+	  	}
+	*len = total; /* return number actually sent here */
 	  	
-// 	return &data;
-// }
+	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+ }
