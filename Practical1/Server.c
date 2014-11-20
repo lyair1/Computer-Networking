@@ -1,0 +1,269 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h> // for open flags
+#include <time.h> // for time measurement
+#include <assert.h>
+#include <errno.h> 
+#include <string.h>
+#include <math.h>
+
+//Sockets
+#include <sys/socket.h>
+//Internet addresses
+#include <netinet/in.h>
+//Working with Internet addresses
+#include <arpa/inet.h>
+//Domain Name Service (DNS)
+#include <netdb.h>
+//Working with errno to report errors
+#include <errno.h>
+
+struct gameData{
+	int valid;
+	int win;
+	int isMisere;
+	int heapA;
+	int heapB;
+	int heapC;
+	int heapD;
+};
+
+struct move{
+	int heap;
+	int amount;
+};
+
+
+void checkForNegativeValue(int num, char* func);
+void checkForZeroValue(int num);
+int myBind(int sock, const struct sockaddr_in *myaddr, int size);
+int IsBoardClear(struct gameData game);
+void RemoveOnePieceFromBiggestHeap(struct gameData * game);
+int MaxNum(int a, int b, int c, int d);
+
+int main(int argc, char** argv){
+	int sock,sin_size, errorIndicator;
+	struct sockaddr_in myaddr ,sockaddr ;
+	struct sockaddr their_addr, addrBind;
+	struct in_addr inAddr;
+	struct socklen_t *addrlen;
+	char buf[1024];
+
+	int isMis,port =6325,M;
+	struct gameData game;
+	struct move clientMove;
+
+/*Region input Check*/
+	#if (1)
+	if(argc<=2 || argc>=5){
+		printf("Illegal arguments\n");
+		exit(1);
+	}
+
+	printf("argv[1] %s\n", argv[2]);
+	sscanf(argv[1],"%d",&M);
+
+	game.heapA = M;
+	game.heapB = M;
+	game.heapC = M;
+	game.heapD = M;
+
+	if( strcmp(argv[2],"0") ==0 ){
+		game.isMisere =0;
+	}
+	else if(strcmp(argv[2],"1") ==0 ){
+		game.isMisere=1;
+	}
+	else{
+		printf("Illegal arguments. Misere should be 0/1\n");
+		exit(1);
+	}
+
+	if(argc==4){
+		/* QQQ Why 4? shouldn't be 3?*/
+		sscanf(argv[4],"%d",&port);
+	}
+
+	#endif
+
+	printf("Set all arguments, start server\n");
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	checkForNegativeValue(sock, "socket");
+	printf("Succesfully got a socket number: %d\n", sock);
+
+
+	addrBind.sa_family = AF_INET;
+	myaddr.sin_family = AF_INET;
+	myaddr.sin_port = htons(6325);
+	inAddr.s_addr = htonl( INADDR_ANY );
+	myaddr.sin_addr = inAddr;
+	errorIndicator=myBind(sock, &myaddr, sizeof(addrBind));
+	checkForNegativeValue(errorIndicator, "bind");
+	printf("Succesfully binded %d\n", sock);
+
+	errorIndicator=listen(sock, 5);
+	checkForNegativeValue(errorIndicator, "listen");
+	printf("Succesfully started listening: %d\n", sock);
+
+	sin_size = sizeof(struct sockaddr_in);
+
+	socklen_t var = sizeof(their_addr);
+	printf("Trying to accept\n");
+	sock = accept(sock, (struct sockaddr*)NULL, NULL );
+	checkForNegativeValue(sock, "accept");
+	printf("Accepted\n");
+
+	game.valid=1;
+	game.win = -1;
+
+	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
+	while(1){
+		errorIndicator = send(sock, buf, 1024 ,0);
+		checkForNegativeValue(errorIndicator, "send");
+		checkForZeroValue(errorIndicator);
+
+
+		errorIndicator = recv(sock, &buf, 1024 ,0);
+		printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
+		checkForNegativeValue(errorIndicator, "recv");
+		checkForZeroValue(errorIndicator);
+
+		sscanf(buf, "%d$%d", &clientMove.heap, &clientMove.amount);
+
+		if(clientMove.heap<0 || clientMove.heap>3){
+			game.valid=0;
+		}
+		else{
+			CheckAndMakeClientMove(clientMove, &game);
+		}
+
+		if(IsBoardClear(game)){
+			// Client win
+			game.win=1;
+		}
+
+		else if(game.valid){
+			RemoveOnePieceFromBiggestHeap(&game);
+			if(IsBoardClear(game)){
+				// server win
+				game.win=2;
+			}
+		}
+
+		sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
+	}
+
+}
+
+void CheckAndMakeClientMove(struct gameData game, struct move * clientMove){
+	switch(clientMove.heap){
+		case(0):
+			if(game->heapA < clientMove.amount){
+				game->valid=0;
+			}
+			else{
+				game->valid=1;
+				game->heapA-=clientMove.amount;
+			}
+			break;
+
+		case(1):
+			if(game->heapB < clientMove.amount){
+				game->valid=0;
+			}
+			else{
+				game->valid=1;
+				game->heapB-=clientMove.amount;
+			}
+			break;
+
+		case(2):
+			if(game->heapC < clientMove.amount){
+				game->valid=0;
+			}
+			else{
+				game->valid=1;
+				game->heapC-=clientMove.amount;
+			}
+			break;
+
+		case(3):
+			if(game->heapD < clientMove.amount){
+				game->valid=0;
+			}
+			else{
+				game->valid=1;
+				game->heapD-=clientMove.amount;
+			}
+			break;
+
+		default:
+			game->valid=0;
+	}
+}
+
+void checkForNegativeValue(int num, char* func){
+	if(num<0){
+		printf( "Error: %s\n", strerror(errno) );
+		exit(1);
+	}
+}
+
+void checkForZeroValue(int num){
+	if(num==0){
+		printf( "Disconnected from server\n");
+		exit(1);
+	}
+}
+
+int myBind(int sock, const struct sockaddr_in *myaddr, int size){
+	return bind(sock, (struct sockaddr*)myaddr, sizeof(struct sockaddr_in));
+}
+
+void RemoveOnePieceFromBiggestHeap(struct gameData* game){
+	int maxHeap;
+	maxHeap = MaxNum(game->heapA, game->heapB,game->heapC ,game->heapD);
+
+	if(maxHeap == game->heapA){
+		game->heapA-=1;
+		return;
+	}
+	if(maxHeap == game->heapB){
+		game->heapB-=1;
+		return;
+	}
+	if(maxHeap == game->heapC){
+		game->heapC-=1;
+		return;
+	}
+	if(maxHeap == game->heapD){
+		game->heapD-=1;
+		return;
+	}
+}
+
+int MaxNum(int a, int b, int c, int d){
+	int biggest = a;
+	if (biggest < b)
+	{
+		 biggest = b;
+	}
+	if (biggest < c)
+	{
+		 biggest = c;
+	}
+	if (biggest < d)
+	{
+		 biggest = d;
+	}
+
+	return biggest;
+}
+
+int IsBoardClear(struct gameData game){
+	return ( 	game.heapA==0 &&
+				game.heapB==0 &&
+				game.heapC==0 &&
+				game.heapD==0   );
+}
