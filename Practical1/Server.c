@@ -86,16 +86,16 @@ int main(int argc, char** argv){
 
 	if(argc==4){
 		/* QQQ Why 4? shouldn't be 3?*/
-		sscanf(argv[4],"%d",&port);
+		sscanf(argv[3],"%d",&port);
 	}
 
 	#endif
 
-	printf("Set all arguments, start server\n");
+	/*printf("Set all arguments, start server\n");*/
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	checkForNegativeValue(sock, "socket");
-	printf("Succesfully got a socket number: %d\n", sock);
+	/*printf("Succesfully got a socket number: %d\n", sock);*/
 
 
 	addrBind.sa_family = AF_INET;
@@ -105,20 +105,16 @@ int main(int argc, char** argv){
 	myaddr.sin_addr = inAddr;
 	errorIndicator=myBind(sock, &myaddr, sizeof(addrBind));
 	checkForNegativeValue(errorIndicator, "bind");
-	printf("Succesfully binded %d\n", sock);
+	/*printf("Succesfully binded %d\n", sock);*/
 
 	errorIndicator=listen(sock, 5);
 	checkForNegativeValue(errorIndicator, "listen");
-	printf("Succesfully started listening: %d\n", sock);
+	/*printf("Succesfully started listening: %d\n", sock);*/
 
-	/*sin_size = sizeof(struct sockaddr_in);*/
-
-	/*socklen_t var = sizeof(their_addr);*/
-
-	printf("Trying to accept\n");
+	/*printf("Trying to accept\n");*/
 	sock = accept(sock, (struct sockaddr*)NULL, NULL );
 	checkForNegativeValue(sock, "accept");
-	printf("Accepted\n");
+	/*printf("Accepted\n");*/
 
 	game.valid=1;
 	game.win = -1;

@@ -48,7 +48,7 @@ int receiveAll(int s, char *buf, int *len);
 
 int main(int argc, char const *argv[])
 { 
-	printf("Client Started\n");
+	/*printf("Client Started\n");*/
 	char port[20];
 
 	assert(argc > 1 && argc < 4);
@@ -65,7 +65,7 @@ int main(int argc, char const *argv[])
 		printf( "Error opening the socket: %s\n", strerror( errno ) );
    	   	return errno;
 	}
-	printf("Succesfully got a socket number: %d\n", sock);
+	/*printf("Succesfully got a socket number: %d\n", sock);*/
 
 	// Connect to server
 	sock = connectToServer(sock, argv[1], port);
@@ -123,14 +123,14 @@ int connectToServer(int sock, const char* address, char* port){
         	continue;
     	}
 
-    	printf("trying to connect\n");
+    	/*printf("trying to connect\n");*/
     	if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
       	  	//close(sock);
        	 	perror("connect");
         	continue;
     	}
 
-    	printf("Connected\n");
+    	/*printf("Connected\n");*/
 
     	break; // if we get here, we must have connected successfully
 	}
