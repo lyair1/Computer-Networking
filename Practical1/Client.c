@@ -53,9 +53,13 @@ int main(int argc, char const *argv[])
 
 	assert(argc > 1 && argc < 4);
 
-	if (argc == 2)
+	if (argc != 2)
 	{
 		strcpy(port,"6325");
+	}
+	else
+	{
+		strcpy(port,argv[2]);
 	}
 
 	// Get socket
@@ -109,7 +113,7 @@ int connectToServer(int sock, const char* address, char* port){
 	hints.ai_family = AF_INET; // use AF_INET6 to force IPv6
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo(address, "6325", &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(address, port, &hints, &servinfo)) != 0) {
 	//if ((rv = getaddrinfo("nova.cs.tau.ac.il", "6325", &hints, &servinfo)) != 0) {
     	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
     	exit(1);
@@ -189,7 +193,7 @@ struct gameData receiveDataFromServer(int sock)
 
 	game = parseDataFromServer(buf);
 
-	//printf("Data Received from server: %s\n",buf);
+	/*printf("Data Received from server: %s\n",buf);*/
 
 	return game;
 }

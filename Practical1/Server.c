@@ -54,7 +54,7 @@ int main(int argc, char** argv){
 	/*struct socklen_t *addrlen;*/
 	char buf[MSG_SIZE];
 
-	int port =6325,M;
+	int M,port;
 	struct gameData game;
 	struct move clientMove;
 
@@ -65,7 +65,7 @@ int main(int argc, char** argv){
 		exit(1);
 	}
 
-	printf("argv[1] %s\n", argv[2]);
+	/*printf("argv[1] %s\n", argv[2]);*/
 	sscanf(argv[1],"%d",&M);
 
 	game.heapA = M;
@@ -85,8 +85,10 @@ int main(int argc, char** argv){
 	}
 
 	if(argc==4){
-		/* QQQ Why 4? shouldn't be 3?*/
 		sscanf(argv[3],"%d",&port);
+	}
+	else{
+		port =6325;
 	}
 
 	#endif
@@ -100,7 +102,7 @@ int main(int argc, char** argv){
 
 	addrBind.sa_family = AF_INET;
 	myaddr.sin_family = AF_INET;
-	myaddr.sin_port = htons(6325);
+	myaddr.sin_port = htons(port);
 	inAddr.s_addr = htonl( INADDR_ANY );
 	myaddr.sin_addr = inAddr;
 	errorIndicator=myBind(sock, &myaddr, sizeof(addrBind));
