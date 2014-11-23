@@ -49,20 +49,20 @@ void checkForZeroValue(int num, int sock);
 
 int main(int argc, char const *argv[])
 { 
-	/*printf("Client Started\n");*/
+	printf("Client Started\n");
 	char port[20];
 	char address[50];
 
 	assert(argc >= 1 && argc <= 3);
 
-	if (argc == 2)
+	if (argc < 2)
 	{
 		strcpy(address,"localhost");
 	}else{
 		strcpy(address,argv[1]);
 	}
 
-	if (argc == 3)
+	if (argc < 3)
 	{
 		strcpy(port,"6325");
 	}
@@ -71,6 +71,7 @@ int main(int argc, char const *argv[])
 		strcpy(port,argv[2]);
 	}
 
+	printf("trying to get socket\n");
 	// Get socket
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock == -1)
@@ -78,7 +79,7 @@ int main(int argc, char const *argv[])
 		printf( "Error opening the socket: %s\n", strerror( errno ) );
    	   	return errno;
 	}
-	/*printf("Succesfully got a socket number: %d\n", sock);*/
+	printf("Succesfully got a socket number: %d\n", sock);
 
 	// Connect to server
 	sock = connectToServer(sock, address, port);
@@ -97,10 +98,9 @@ int main(int argc, char const *argv[])
 	printGameState(game);
 	while(game.win == -1){
 		m = getMoveFromInput(sock);
-		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
 		if(sendAll(sock, buf, &msgSize) == -1){
-			close(sock);
+			//close(sock);
 			exit(0);
 		}
 		game = receiveDataFromServer(sock);
@@ -126,7 +126,7 @@ int connectToServer(int sock, const char* address, char* port){
 	if ((rv = getaddrinfo(address, port, &hints, &servinfo)) != 0) {
 	//if ((rv = getaddrinfo("nova.cs.tau.ac.il", "6325", &hints, &servinfo)) != 0) {
     	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-    	close(sock);
+    	//close(sock);
     	exit(1);
 	}
 
@@ -138,14 +138,14 @@ int connectToServer(int sock, const char* address, char* port){
         	continue;
     	}
 
-    	/*printf("trying to connect\n");*/
+    	printf("trying to connect\n");
     	if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
       	  	//close(sock);
        	 	perror("connect");
         	continue;
     	}
 
-    	/*printf("Connected\n");*/
+    	printf("Connected\n");
 
     	break; // if we get here, we must have connected successfully
 	}
@@ -153,7 +153,7 @@ int connectToServer(int sock, const char* address, char* port){
 	if (p == NULL) {
     	// looped off the end of the list with no connection
     	fprintf(stderr, "failed to connect\n");
-    	close(sock);
+    	//close(sock);
     	exit(2);
 	}
 
@@ -173,7 +173,7 @@ struct move getMoveFromInput(int sock){
 	// Exit if user put Q
 	if (strcmp(cmd,"Q") == 0)
 	{
-		close(sock);
+		//close(sock);
 		exit(0);
 	}
 
@@ -182,7 +182,7 @@ struct move getMoveFromInput(int sock){
 	if (heap < 0 || heap > 3)
 	{
 		 printf("Illegal input!!!\n");
-		 close(sock);
+		 //close(sock);
 		 exit(1);
 	}
 
@@ -202,13 +202,13 @@ struct gameData receiveDataFromServer(int sock)
 	if (rec == -1)
 	{
 		fprintf(stderr, "failed to receive initial data\n");
-		close(sock);
+		//close(sock);
     	exit(2);
 	}
 
 	game = parseDataFromServer(buf);
 
-	/*printf("Data Received from server: %s\n",buf);*/
+	printf("Data Received from server: %s\n",buf);
 
 	return game;
 }
@@ -283,7 +283,7 @@ int sendAll(int s, char *buf, int *len) {
  void checkForZeroValue(int num, int sock){
 	if(num==0){
 		printf( "Disconnected from server\n");
-		close(sock);
+		//close(sock);
 		exit(1);
 	}
 }
