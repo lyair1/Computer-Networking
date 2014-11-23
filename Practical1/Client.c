@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h> 
 #include <string.h>
+#include <unistd.h>
 
 //Sockets
 #include <sys/socket.h>
@@ -44,7 +45,7 @@ void printValid(struct gameData game);
 struct move getMoveFromInput(int sock);
 int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
- void checkForZeroValue(int num, int sock);
+void checkForZeroValue(int num, int sock);
 
 int main(int argc, char const *argv[])
 { 
@@ -282,7 +283,7 @@ int sendAll(int s, char *buf, int *len) {
  void checkForZeroValue(int num, int sock){
 	if(num==0){
 		printf( "Disconnected from server\n");
-		clise(sock);
+		close(sock);
 		exit(1);
 	}
 }
