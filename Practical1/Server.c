@@ -66,7 +66,7 @@ int main(int argc, char** argv){
 		exit(1);
 	}
 
-	printf("argv[1] %s\n", argv[2]);
+	/*printf("argv[1] %s\n", argv[2]);*/
 	sscanf(argv[1],"%d",&M);
 
 	game.heapA = M;
@@ -94,11 +94,11 @@ int main(int argc, char** argv){
 
 	#endif
 
-	printf("Set all arguments, start server\n");
+	/*printf("Set all arguments, start server\n");*/
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	checkForNegativeValue(sock, "socket", sock);
-	printf("Succesfully got a socket number: %d\n", sock);
+	/*printf("Succesfully got a socket number: %d\n", sock);*/
 
 
 	addrBind.sa_family = AF_INET;
@@ -108,23 +108,23 @@ int main(int argc, char** argv){
 	myaddr.sin_addr = inAddr;
 	errorIndicator=myBind(sock, &myaddr, sizeof(addrBind));
 	checkForNegativeValue(errorIndicator, "bind", sock);
-	printf("Succesfully binded %d\n", sock);
+	/*printf("Succesfully binded %d\n", sock);*/
 
 	errorIndicator=listen(sock, 5);
 	checkForNegativeValue(errorIndicator, "listen", sock);
-	printf("Succesfully started listening: %d\n", sock);
+	/*printf("Succesfully started listening: %d\n", sock);*/
 
-	printf("Trying to accept\n");
+/*	printf("Trying to accept\n");*/
 	sock = accept(sock, (struct sockaddr*)NULL, NULL );
 	checkForNegativeValue(sock, "accept", sock);
-	printf("Accepted\n");
+	/*printf("Accepted\n");*/
 
 	game.valid=1;
 	game.win = -1;
 
 	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	while(1){
-		printf("trying to send all\n");
+		/*printf("trying to send all\n");*/
 		errorIndicator = sendAll(sock, buf, &MSG_SIZE);
 		checkForNegativeValue(errorIndicator, "send", sock);
 
@@ -136,7 +136,7 @@ int main(int argc, char** argv){
 		}
 
 		errorIndicator = receiveAll(sock, buf, &MSG_SIZE);
-		printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
+		/*printf("Received data: %s with indicator: %d\n",buf, errorIndicator);*/
 		checkForNegativeValue(errorIndicator, "recv", sock);
 
 		sscanf(buf, "%d$%d", &clientMove.heap, &clientMove.amount);

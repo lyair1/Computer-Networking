@@ -49,7 +49,7 @@ void checkForZeroValue(int num, int sock);
 
 int main(int argc, char const *argv[])
 { 
-	printf("Client Started\n");
+	/*printf("Client Started\n");*/
 	char port[20];
 	char address[50];
 
@@ -71,7 +71,7 @@ int main(int argc, char const *argv[])
 		strcpy(port,argv[2]);
 	}
 
-	printf("trying to get socket\n");
+	/*printf("trying to get socket\n");*/
 	// Get socket
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock == -1)
@@ -79,7 +79,7 @@ int main(int argc, char const *argv[])
 		printf( "Error opening the socket: %s\n", strerror( errno ) );
    	   	return errno;
 	}
-	printf("Succesfully got a socket number: %d\n", sock);
+	/*printf("Succesfully got a socket number: %d\n", sock);*/
 
 	// Connect to server
 	sock = connectToServer(sock, address, port);
@@ -138,14 +138,14 @@ int connectToServer(int sock, const char* address, char* port){
         	continue;
     	}
 
-    	printf("trying to connect\n");
+    	/*printf("trying to connect\n");*/
     	if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
       	  	//close(sock);
        	 	perror("connect");
         	continue;
     	}
 
-    	printf("Connected\n");
+    	/*printf("Connected\n");*/
 
     	break; // if we get here, we must have connected successfully
 	}
@@ -208,7 +208,7 @@ struct gameData receiveDataFromServer(int sock)
 
 	game = parseDataFromServer(buf);
 
-	printf("Data Received from server: %s\n",buf);
+	/*printf("Data Received from server: %s\n",buf);*/
 
 	return game;
 }
