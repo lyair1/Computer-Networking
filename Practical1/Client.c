@@ -41,19 +41,27 @@ void printWinner(struct gameData game);
 struct gameData parseDataFromServer(char buf[msgSize]);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
-struct move getMoveFromInput();
+struct move getMoveFromInput(int sock);
 int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
- void checkForZeroValue(int num);
+ void checkForZeroValue(int num, int sock);
 
 int main(int argc, char const *argv[])
 { 
 	/*printf("Client Started\n");*/
 	char port[20];
+	char address[50];
 
-	assert(argc > 1 && argc < 4);
+	assert(argc >= 1 && argc <= 3);
 
-	if (argc != 2)
+	if (argc == 2)
+	{
+		strcpy(address,"localhost");
+	}else{
+		strcpy(address,argv[1]);
+	}
+
+	if (argc == 3)
 	{
 		strcpy(port,"6325");
 	}
@@ -72,7 +80,7 @@ int main(int argc, char const *argv[])
 	/*printf("Succesfully got a socket number: %d\n", sock);*/
 
 	// Connect to server
-	sock = connectToServer(sock, argv[1], port);
+	sock = connectToServer(sock, address, port);
 	
 	char buf[msgSize];
 	struct move m;
@@ -87,10 +95,11 @@ int main(int argc, char const *argv[])
 
 	printGameState(game);
 	while(game.win == -1){
-		m = getMoveFromInput();
+		m = getMoveFromInput(sock);
 		// TODO: make sure everything is sent
 		sprintf(buf, "%d$%d", m.heap,m.amount);
 		if(sendAll(sock, buf, &msgSize) == -1){
+			close(sock);
 			exit(0);
 		}
 		game = receiveDataFromServer(sock);
@@ -116,6 +125,7 @@ int connectToServer(int sock, const char* address, char* port){
 	if ((rv = getaddrinfo(address, port, &hints, &servinfo)) != 0) {
 	//if ((rv = getaddrinfo("nova.cs.tau.ac.il", "6325", &hints, &servinfo)) != 0) {
     	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    	close(sock);
     	exit(1);
 	}
 
@@ -142,6 +152,7 @@ int connectToServer(int sock, const char* address, char* port){
 	if (p == NULL) {
     	// looped off the end of the list with no connection
     	fprintf(stderr, "failed to connect\n");
+    	close(sock);
     	exit(2);
 	}
 
@@ -150,7 +161,7 @@ int connectToServer(int sock, const char* address, char* port){
 	return sock;
 }
 
-struct move getMoveFromInput(){
+struct move getMoveFromInput(int sock){
 	int heap, reduce;
 	char heapC;
 	char cmd[10];
@@ -161,6 +172,7 @@ struct move getMoveFromInput(){
 	// Exit if user put Q
 	if (strcmp(cmd,"Q") == 0)
 	{
+		close(sock);
 		exit(0);
 	}
 
@@ -169,6 +181,7 @@ struct move getMoveFromInput(){
 	if (heap < 0 || heap > 3)
 	{
 		 printf("Illegal input!!!\n");
+		 close(sock);
 		 exit(1);
 	}
 
@@ -188,6 +201,7 @@ struct gameData receiveDataFromServer(int sock)
 	if (rec == -1)
 	{
 		fprintf(stderr, "failed to receive initial data\n");
+		close(sock);
     	exit(2);
 	}
 
@@ -238,7 +252,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = send(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n);
+			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -255,7 +269,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = recv(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n);
+			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -265,9 +279,10 @@ int sendAll(int s, char *buf, int *len) {
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }
 
- void checkForZeroValue(int num){
+ void checkForZeroValue(int num, int sock){
 	if(num==0){
 		printf( "Disconnected from server\n");
+		clise(sock);
 		exit(1);
 	}
 }

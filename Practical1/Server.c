@@ -36,8 +36,8 @@ struct move{
 };
 
 
-void checkForNegativeValue(int num, char* func);
-void checkForZeroValue(int num);
+void checkForNegativeValue(int num, char* func, int sock);
+void checkForZeroValue(int num, int sock);
 int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
@@ -96,7 +96,7 @@ int main(int argc, char** argv){
 	/*printf("Set all arguments, start server\n");*/
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
-	checkForNegativeValue(sock, "socket");
+	checkForNegativeValue(sock, "socket", sock);
 	/*printf("Succesfully got a socket number: %d\n", sock);*/
 
 
@@ -106,16 +106,16 @@ int main(int argc, char** argv){
 	inAddr.s_addr = htonl( INADDR_ANY );
 	myaddr.sin_addr = inAddr;
 	errorIndicator=myBind(sock, &myaddr, sizeof(addrBind));
-	checkForNegativeValue(errorIndicator, "bind");
+	checkForNegativeValue(errorIndicator, "bind", sock);
 	/*printf("Succesfully binded %d\n", sock);*/
 
 	errorIndicator=listen(sock, 5);
-	checkForNegativeValue(errorIndicator, "listen");
+	checkForNegativeValue(errorIndicator, "listen", sock);
 	/*printf("Succesfully started listening: %d\n", sock);*/
 
 	/*printf("Trying to accept\n");*/
 	sock = accept(sock, (struct sockaddr*)NULL, NULL );
-	checkForNegativeValue(sock, "accept");
+	checkForNegativeValue(sock, "accept", sock);
 	/*printf("Accepted\n");*/
 
 	game.valid=1;
@@ -124,11 +124,18 @@ int main(int argc, char** argv){
 	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	while(1){
 		errorIndicator = sendAll(sock, buf, &MSG_SIZE);
-		checkForNegativeValue(errorIndicator, "send");
+		checkForNegativeValue(errorIndicator, "send", sock);
+
+		// If the game is over the server disconnect
+		if (game.win != 0)
+		{
+			close(sock);
+			exit(0);
+		}
 
 		errorIndicator = receiveAll(sock, buf, &MSG_SIZE);
 		//printf("Received data: %s with indicator: %d\n",buf, errorIndicator);
-		checkForNegativeValue(errorIndicator, "recv");
+		checkForNegativeValue(errorIndicator, "recv", sock);
 
 		sscanf(buf, "%d$%d", &clientMove.heap, &clientMove.amount);
 
@@ -205,16 +212,18 @@ void CheckAndMakeClientMove(struct gameData * game, struct move clientMove){
 	}
 }
 
-void checkForNegativeValue(int num, char* func){
+void checkForNegativeValue(int num, char* func, int sock){
 	if(num<0){
 		printf( "Error: %s\n", strerror(errno) );
+		close(sock);
 		exit(1);
 	}
 }
 
-void checkForZeroValue(int num){
+void checkForZeroValue(int num, int sock){
 	if(num==0){
 		printf( "Disconnected from Client\n");
+		close(sock);
 		exit(1);
 	}
 }
@@ -278,7 +287,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = send(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n);
+			checkForZeroValue(n, s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -295,7 +304,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = recv(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n);
+			checkForZeroValue(n, s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
