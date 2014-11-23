@@ -131,7 +131,7 @@ int main(int argc, char** argv){
 		// If the game is over the server disconnect
 		if (game.win != -1)
 		{
-			//close(sock);
+			close(sock);
 			exit(0);
 		}
 
@@ -217,7 +217,7 @@ void CheckAndMakeClientMove(struct gameData * game, struct move clientMove){
 void checkForNegativeValue(int num, char* func, int sock){
 	if(num<0){
 		printf( "Error: %s\n", strerror(errno) );
-		//close(sock);
+		close(sock);
 		exit(1);
 	}
 }
@@ -225,7 +225,7 @@ void checkForNegativeValue(int num, char* func, int sock){
 void checkForZeroValue(int num, int sock){
 	if(num==0){
 		printf( "Disconnected from Client\n");
-		//close(sock);
+		close(sock);
 		exit(1);
 	}
 }
