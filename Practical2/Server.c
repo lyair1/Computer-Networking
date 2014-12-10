@@ -60,12 +60,13 @@ void createGameDataBuff(struct gameData data, char* buf);
 struct gameData parseGameData(char buf[MSG_SIZE]);
 
 int main(int argc, char** argv){
-	int sock, errorIndicator;
-	struct sockaddr_in myaddr  ;
+	int sockListen, errorIndicator, clientNum[9], maxClientNum;
+	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
 	/*struct socklen_t *addrlen;*/
 	char buf[MSG_SIZE];
+	fd_set fdSet;
 
 	int M,port;
 	struct gameData game;
@@ -108,9 +109,9 @@ int main(int argc, char** argv){
 
 	/*printf("Set all arguments, start server\n");*/
 
-	sock = socket(AF_INET, SOCK_STREAM, 0);
-	checkForNegativeValue(sock, "socket", sock);
-	/*printf("Succesfully got a socket number: %d\n", sock);*/
+	sockListen = socket(AF_INET, SOCK_STREAM, 0);
+	checkForNegativeValue(sockListen, "socket", sockListen);
+	/*printf("Succesfully got a socket number: %d\n", sockListen);*/
 
 
 	addrBind.sa_family = AF_INET;
@@ -118,24 +119,33 @@ int main(int argc, char** argv){
 	myaddr.sin_port = htons(port);
 	inAddr.s_addr = htonl( INADDR_ANY );
 	myaddr.sin_addr = inAddr;
-	errorIndicator=myBind(sock, &myaddr, sizeof(addrBind));
-	checkForNegativeValue(errorIndicator, "bind", sock);
+	errorIndicator=myBind(sockListen, &myaddr, sizeof(addrBind));
+	checkForNegativeValue(errorIndicator, "bind", sockListen);
 	/*printf("Succesfully binded %d\n", sock);*/
 
-	errorIndicator=listen(sock, 5);
+	errorIndicator=listen(sockListen, 5);
 	checkForNegativeValue(errorIndicator, "listen", sock);
 	/*printf("Succesfully started listening: %d\n", sock);*/
-
-/*	printf("Trying to accept\n");*/
-	sock = accept(sock, (struct sockaddr*)NULL, NULL );
-	checkForNegativeValue(sock, "accept", sock);
-	/*printf("Accepted\n");*/
 
 	game.valid=1;
 	game.win = -1;
 
+	FD_ZERO(fdSet);
+	FD_SET(sockListen, fdSet);
+
 	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	while(1){
+		fdCurr = select(maxClientNum+1, fdSet, NULL, NULL, NULL);
+		if(fdCurr == sockListen){
+			/*printf("Trying to accept\n");*/
+			fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
+			checkForNegativeValue(fdCurr, "accept", fdCurr);
+			/*printf("Accepted\n");*/
+			FD_SET(fdCurr, fd_set);
+			continue;
+		}
+
+
 		/*printf("trying to send all\n");*/
 		errorIndicator = sendAll(sock, buf, &MSG_SIZE);
 		checkForNegativeValue(errorIndicator, "send", sock);
