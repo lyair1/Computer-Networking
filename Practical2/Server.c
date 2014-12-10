@@ -1,4 +1,4 @@
-#include <stdio.h>
+ #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h> // for open flags
 #include <time.h> // for time measurement
@@ -161,15 +161,28 @@ int main(int argc, char** argv){
 		}
 
 		if(IsBoardClear(game)){
-			// Client win
-			game.win=1;
+			if(game.isMisere){
+				// Server win
+				game.win=2;
+			}
+			else{
+				// Client win
+				game.win=1;
+			}
+
 		}
 
 		else{
 			RemoveOnePieceFromBiggestHeap(&game);
 			if(IsBoardClear(game)){
-				// server win
-				game.win=2;
+				if(game.isMisere){
+					// Client win
+					game.win=1;
+				}
+				else{
+					// Server win
+					game.win=2;
+				}
 			}
 		}
 
