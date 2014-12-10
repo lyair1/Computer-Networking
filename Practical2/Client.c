@@ -19,9 +19,14 @@
 //Working with errno to report errors
 #include <errno.h>
 
+int MSG_SIZE=50;
+
 struct gameData{
-	int valid;
-	int win;
+	int valid; 
+	int win; // 0 - no one, 1 - player win, 2 - player lost
+	int numOfPlayers; // p - then number of players the server allows to play
+	int myPlayerId; // player id (0 - p-1), if i dont play: -1
+	int playing; // 0 - viewing, 1 - playing
 	int isMisere;
 	int heapA;
 	int heapB;
@@ -29,23 +34,31 @@ struct gameData{
 	int heapD;
 };
 
-struct move{
+struct clientMsg{
 	int heap;
 	int amount;
+	int msg; // 0 - this is a message, 1 - this is a move
+	int recp; // player id to send the message to (0 - p-1)
+	char *msgTxt;
 };
 
-int msgSize = 50;
 
 int connectToServer(int sock, const char* address, char* port);
 void printGameState(struct gameData game);
 void printWinner(struct gameData game);
-struct gameData parseDataFromServer(char buf[msgSize]);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
-struct move getMoveFromInput(int sock);
+struct clientMsg getMoveFromInput(int sock);
+
+// common
 int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
 void checkForZeroValue(int num, int sock);
+void checkForNegativeValue(int num, char* func, int sock);
+struct clientMsg parseClientMsg(char buf[MSG_SIZE]);
+void createClientMsgBuff(struct clientMsg data, char* buf);
+void createGameDataBuff(struct gameData data, char* buf);
+struct gameData parseGameData(char buf[MSG_SIZE]);
 
 int main(int argc, char const *argv[])
 { 
@@ -84,8 +97,8 @@ int main(int argc, char const *argv[])
 	// Connect to server
 	sock = connectToServer(sock, address, port);
 	
-	char buf[msgSize];
-	struct move m;
+	char buf[MSG_SIZE];
+	struct clientMsg m;
 	// Get initial data
 	struct gameData game = receiveDataFromServer(sock);
 	if (game.isMisere == 1)
@@ -99,7 +112,7 @@ int main(int argc, char const *argv[])
 	while(game.win == -1){
 		m = getMoveFromInput(sock);
 		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(sendAll(sock, buf, &msgSize) == -1){
+		if(sendAll(sock, buf, &MSG_SIZE) == -1){
 			close(sock);
 			exit(0);
 		}
@@ -162,7 +175,7 @@ int connectToServer(int sock, const char* address, char* port){
 	return sock;
 }
 
-struct move getMoveFromInput(int sock){
+struct clientMsg getMoveFromInput(int sock){
 	int heap, reduce;
 	char heapC;
 	char cmd[10];
@@ -186,7 +199,7 @@ struct move getMoveFromInput(int sock){
 		 exit(1);
 	}
 
-	struct move m;
+	struct clientMsg m;
 	m.heap = heap;
 	m.amount = reduce;
 
@@ -195,9 +208,9 @@ struct move getMoveFromInput(int sock){
 
 struct gameData receiveDataFromServer(int sock)
 {
-	char buf[msgSize];
+	char buf[MSG_SIZE];
 	struct gameData game;
-	int rec = receiveAll(sock, buf, &msgSize);
+	int rec = receiveAll(sock, buf, &MSG_SIZE);
 
 	if (rec == -1)
 	{
@@ -206,7 +219,7 @@ struct gameData receiveDataFromServer(int sock)
     	exit(2);
 	}
 
-	game = parseDataFromServer(buf);
+	game = parseGameData(buf);
 
 	/*printf("Data Received from server: %s\n",buf);*/
 
@@ -237,14 +250,6 @@ void printWinner(struct gameData game)
 void printGameState(struct gameData game){
 	printf("Heap sizes are %d,%d,%d,%d\n",game.heapA, game.heapB, game.heapC, game.heapD);
 }
-
-struct gameData parseDataFromServer(char buf[msgSize]){
-	struct gameData data;
-	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d", &data.valid, &data.win, &data.isMisere, &data.heapA, &data.heapB, &data.heapC, &data.heapD);
-
-	return data;
-}
-
 
 int sendAll(int s, char *buf, int *len) {
 	int total = 0; /* how many bytes we've sent */
@@ -286,4 +291,64 @@ int sendAll(int s, char *buf, int *len) {
 		close(sock);
 		exit(1);
 	}
+}
+
+void checkForNegativeValue(int num, char* func, int sock){
+	if(num<0){
+		printf( "Error: %s\n", strerror(errno) );
+		close(sock);
+		exit(1);
+	}
+}
+
+void createClientMsgBuff(struct clientMsg data, char* buf){
+	sprintf(buf, "%d$%d$%d$%d$%s$",
+	 data.heap,
+	 data.amount,
+	 data.msg,
+	 data.recp, 
+	 data.msgTxt);
+}
+
+struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
+	struct clientMsg data;
+	sscanf(buf, "%d$%d$%d$%d$%s$",
+	 &data.heap,
+	 &data.amount,
+	 &data.msg,
+	 &data.recp, 
+	 data.msgTxt);
+
+	return data;
+}
+
+struct gameData parseGameData(char buf[MSG_SIZE]){
+	struct gameData data;
+	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	 &data.valid,
+	 &data.win,
+	 &data.numOfPlayers,
+	 &data.myPlayerId, 
+	 &data.playing, 
+	 &data.isMisere, 
+	 &data.heapA, 
+	 &data.heapB, 
+	 &data.heapC, 
+	 &data.heapD);
+
+	return data;
+}
+
+void createGameDataBuff(struct gameData data, char* buf){
+	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	 data.valid,
+	 data.win,
+	 data.numOfPlayers,
+	 data.myPlayerId, 
+	 data.playing, 
+	 data.isMisere, 
+	 data.heapA, 
+	 data.heapB, 
+	 data.heapC, 
+	 data.heapD);
 }

@@ -22,8 +22,11 @@
 int MSG_SIZE=50;
 
 struct gameData{
-	int valid;
-	int win;
+	int valid; 
+	int win; // 0 - no one, 1 - player win, 2 - player lost
+	int numOfPlayers; // p - then number of players the server allows to play
+	int myPlayerId; // player id (0 - p-1), if i dont play: -1
+	int playing; // 0 - viewing, 1 - playing
 	int isMisere;
 	int heapA;
 	int heapB;
@@ -31,21 +34,30 @@ struct gameData{
 	int heapD;
 };
 
-struct move{
+struct clientMsg{
 	int heap;
 	int amount;
+	int msg; // 0 - this is a message, 1 - this is a move
+	int recp; // player id to send the message to (0 - p-1)
+	char msgTxt[10];
 };
 
 
-void checkForNegativeValue(int num, char* func, int sock);
-void checkForZeroValue(int num, int sock);
 int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
 int MaxNum(int a, int b, int c, int d);
-void CheckAndMakeClientMove(struct gameData * game, struct move clientMove);
+void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove);
+
+// common
 int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
+void checkForZeroValue(int num, int sock);
+void checkForNegativeValue(int num, char* func, int sock);
+struct clientMsg parseClientMsg(char buf[MSG_SIZE]);
+void createClientMsgBuff(struct clientMsg data, char* buf);
+void createGameDataBuff(struct gameData data, char* buf);
+struct gameData parseGameData(char buf[MSG_SIZE]);
 
 int main(int argc, char** argv){
 	int sock, errorIndicator;
@@ -57,7 +69,7 @@ int main(int argc, char** argv){
 
 	int M,port;
 	struct gameData game;
-	struct move clientMove;
+	struct clientMsg clientMove;
 
 /*Region input Check*/
 	#if (1)
@@ -166,7 +178,7 @@ int main(int argc, char** argv){
 
 }
 
-void CheckAndMakeClientMove(struct gameData * game, struct move clientMove){
+void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove){
 
 	switch(clientMove.heap){
 		case(0):
@@ -217,14 +229,6 @@ void CheckAndMakeClientMove(struct gameData * game, struct move clientMove){
 void checkForNegativeValue(int num, char* func, int sock){
 	if(num<0){
 		printf( "Error: %s\n", strerror(errno) );
-		close(sock);
-		exit(1);
-	}
-}
-
-void checkForZeroValue(int num, int sock){
-	if(num==0){
-		printf( "Disconnected from Client\n");
 		close(sock);
 		exit(1);
 	}
@@ -289,14 +293,14 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = send(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n, s);
+			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
 	  	}
 	*len = total; /* return number actually sent here */
 	  	
-	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
  int receiveAll(int s, char *buf, int *len) {
@@ -306,7 +310,7 @@ int sendAll(int s, char *buf, int *len) {
 	
 	while(total < *len) {
 			n = recv(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n, s);
+			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
@@ -315,3 +319,63 @@ int sendAll(int s, char *buf, int *len) {
 	  	
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }
+
+ void checkForZeroValue(int num, int sock){
+	if(num==0){
+		printf( "Disconnected from server\n");
+		close(sock);
+		exit(1);
+	}
+}
+
+void createClientMsgBuff(struct clientMsg data, char* buf){
+	sprintf(buf, "%d$%d$%d$%d$%s$",
+	 data.heap,
+	 data.amount,
+	 data.msg,
+	 data.recp, 
+	 data.msgTxt);
+}
+
+struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
+	struct clientMsg data;
+	sscanf(buf, "%d$%d$%d$%d$%s$",
+	 &data.heap,
+	 &data.amount,
+	 &data.msg,
+	 &data.recp, 
+	 data.msgTxt);
+
+	return data;
+}
+
+struct gameData parseGameData(char buf[MSG_SIZE]){
+	struct gameData data;
+	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	 &data.valid,
+	 &data.win,
+	 &data.numOfPlayers,
+	 &data.myPlayerId, 
+	 &data.playing, 
+	 &data.isMisere, 
+	 &data.heapA, 
+	 &data.heapB, 
+	 &data.heapC, 
+	 &data.heapD);
+
+	return data;
+}
+
+void createGameDataBuff(struct gameData data, char* buf){
+	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	 data.valid,
+	 data.win,
+	 data.numOfPlayers,
+	 data.myPlayerId, 
+	 data.playing, 
+	 data.isMisere, 
+	 data.heapA, 
+	 data.heapB, 
+	 data.heapC, 
+	 data.heapD);
+}
