@@ -58,9 +58,19 @@ struct clientMsg parseClientMsg(char buf[MSG_SIZE]);
 void createClientMsgBuff(struct clientMsg data, char* buf);
 void createGameDataBuff(struct gameData data, char* buf);
 struct gameData parseGameData(char buf[MSG_SIZE]);
+void PRINT_Debug(char* msg);
+
+#define DEBUG 1
+
+void PRINT_Debug(char* msg){
+	if(DEBUG){
+		printf("%s\n",msg);
+	}
+}
 
 int main(int argc, char** argv){
-	int sockListen, errorIndicator, clientNum[9], maxClientNum;
+	int sockListen, errorIndicator;
+	int clientNum[9], maxClientNum, conPlayers, conViewers;
 	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
@@ -74,7 +84,7 @@ int main(int argc, char** argv){
 
 /*Region input Check*/
 	#if (1)
-	if(argc<=2 || argc>=5){
+	if(argc<=3 || argc>=6){
 		printf("Illegal arguments\n");
 		exit(1);
 	}
@@ -141,9 +151,14 @@ int main(int argc, char** argv){
 			fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
 			checkForNegativeValue(fdCurr, "accept", fdCurr);
 			/*printf("Accepted\n");*/
+			if( (conViewers + conPlayers) == 9){
+
+			
+			}
 			FD_SET(fdCurr, fd_set);
 			continue;
 		}
+
 
 
 		/*printf("trying to send all\n");*/
