@@ -20,7 +20,6 @@
 #include <errno.h>
 
 int MSG_SIZE=50;
-
 struct gameData{
 	int valid; 
 	int win; // 0 - no one, 1 - player win, 2 - player lost
@@ -32,6 +31,7 @@ struct gameData{
 	int heapB;
 	int heapC;
 	int heapD;
+	int moveCount; // amount of move that were made 
 };
 
 struct clientMsg{
@@ -39,7 +39,8 @@ struct clientMsg{
 	int amount;
 	int msg; // 0 - this is a message, 1 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
-	char *msgTxt;
+	int moveCount; // amount of move that were made
+	char msgTxt[10];
 };
 
 
@@ -302,21 +303,23 @@ void checkForNegativeValue(int num, char* func, int sock){
 }
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%s$",
+	sprintf(buf, "%d$%d$%d$%d$%d$%s$",
 	 data.heap,
 	 data.amount,
 	 data.msg,
-	 data.recp, 
+	 data.recp,
+	 data.moveCount, 
 	 data.msgTxt);
 }
 
 struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
 	struct clientMsg data;
-	sscanf(buf, "%d$%d$%d$%d$%s$",
+	sscanf(buf, "%d$%d$%d$%d$%d$%s$",
 	 &data.heap,
 	 &data.amount,
 	 &data.msg,
-	 &data.recp, 
+	 &data.recp,
+	 &data.moveCount,
 	 data.msgTxt);
 
 	return data;
@@ -324,7 +327,7 @@ struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
 
 struct gameData parseGameData(char buf[MSG_SIZE]){
 	struct gameData data;
-	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
 	 &data.valid,
 	 &data.win,
 	 &data.numOfPlayers,
@@ -334,13 +337,14 @@ struct gameData parseGameData(char buf[MSG_SIZE]){
 	 &data.heapA, 
 	 &data.heapB, 
 	 &data.heapC, 
-	 &data.heapD);
+	 &data.heapD,
+	 &data.moveCount);
 
 	return data;
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
 	 data.valid,
 	 data.win,
 	 data.numOfPlayers,
@@ -350,5 +354,6 @@ void createGameDataBuff(struct gameData data, char* buf){
 	 data.heapA, 
 	 data.heapB, 
 	 data.heapC, 
-	 data.heapD);
+	 data.heapD,
+	 data.moveCount);
 }

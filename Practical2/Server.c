@@ -32,6 +32,7 @@ struct gameData{
 	int heapB;
 	int heapC;
 	int heapD;
+	int moveCount; // amount of move that were made 
 };
 
 struct clientMsg{
@@ -39,6 +40,7 @@ struct clientMsg{
 	int amount;
 	int msg; // 0 - this is a message, 1 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
+	int moveCount; // amount of move that were made
 	char msgTxt[10];
 };
 
@@ -78,68 +80,70 @@ int main(int argc, char** argv){
 	char buf[MSG_SIZE];
 	fd_set fdSet;
 
-	int M,port;
+	int M, port, p;
 	struct gameData game;
 	struct clientMsg clientMove;
 
-/*Region input Check*/
-	#if (1)
-	if(argc<=3 || argc>=6){
-		printf("Illegal arguments\n");
-		exit(1);
-	}
+	/*Region input Check*/
+	if (1){
+		if(argc<=3 || argc>=6){
+			printf("Illegal arguments\n");
+			exit(1);
+		}
 
-	/*printf("argv[1] %s\n", argv[2]);*/
-	sscanf(argv[1],"%d",&M);
+		sscanf(argv[1],"%d",&p);
 
-	game.heapA = M;
-	game.heapB = M;
-	game.heapC = M;
-	game.heapD = M;
+		/*printf("argv[1] %s\n", argv[2]);*/
+		sscanf(argv[2],"%d",&M);
 
-	if( strcmp(argv[2],"0") ==0 ){
-		game.isMisere =0;
-	}
-	else if(strcmp(argv[2],"1") ==0 ){
-		game.isMisere=1;
-	}
-	else{
-		printf("Illegal arguments. Misere should be 0/1\n");
-		exit(1);
-	}
+		if( strcmp(argv[3],"0") ==0 ){
+			game.isMisere =0;
+		}
+		else if(strcmp(argv[3],"1") ==0 ){
+			game.isMisere=1;
+		}
+		else{
+			printf("Illegal arguments. Misere should be 0/1\n");
+			exit(1);
+		}
 
-	if(argc==4){
-		sscanf(argv[3],"%d",&port);
-	}
-	else{
-		port =6325;
-	}
+		if(argc==5){
+			sscanf(argv[4],"%d",&port);
+		}
+		else{
+			port =6325;
+		}
 
-	#endif
+		game.heapA = M;
+		game.heapB = M;
+		game.heapC = M;
+		game.heapD = M;
+		game.valid=1;
+		game.win = -1;
+	}
 
 	/*printf("Set all arguments, start server\n");*/
 
-	sockListen = socket(AF_INET, SOCK_STREAM, 0);
-	checkForNegativeValue(sockListen, "socket", sockListen);
-	/*printf("Succesfully got a socket number: %d\n", sockListen);*/
+	// Set listner. accepting only in main loop
+	if(1){
+		sockListen = socket(AF_INET, SOCK_STREAM, 0);
+		checkForNegativeValue(sockListen, "socket", sockListen);
+		/*printf("Succesfully got a socket number: %d\n", sockListen);*/
+		addrBind.sa_family = AF_INET;
+		myaddr.sin_family = AF_INET;
+		myaddr.sin_port = htons(port);
+		inAddr.s_addr = htonl( INADDR_ANY );
+		myaddr.sin_addr = inAddr;
+		errorIndicator=myBind(sockListen, &myaddr, sizeof(addrBind));
+		checkForNegativeValue(errorIndicator, "bind", sockListen);
+		/*printf("Succesfully binded %d\n", sock);*/
 
+		errorIndicator=listen(sockListen, 5);
+		checkForNegativeValue(errorIndicator, "listen", sock);
+		/*printf("Succesfully started listening: %d\n", sock);*/
+	}
 
-	addrBind.sa_family = AF_INET;
-	myaddr.sin_family = AF_INET;
-	myaddr.sin_port = htons(port);
-	inAddr.s_addr = htonl( INADDR_ANY );
-	myaddr.sin_addr = inAddr;
-	errorIndicator=myBind(sockListen, &myaddr, sizeof(addrBind));
-	checkForNegativeValue(errorIndicator, "bind", sockListen);
-	/*printf("Succesfully binded %d\n", sock);*/
-
-	errorIndicator=listen(sockListen, 5);
-	checkForNegativeValue(errorIndicator, "listen", sock);
-	/*printf("Succesfully started listening: %d\n", sock);*/
-
-	game.valid=1;
-	game.win = -1;
-
+	// initilaizing fdSet with listner only
 	FD_ZERO(fdSet);
 	FD_SET(sockListen, fdSet);
 
@@ -367,21 +371,23 @@ int sendAll(int s, char *buf, int *len) {
 }
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%s$",
+	sprintf(buf, "%d$%d$%d$%d$%d$%s$",
 	 data.heap,
 	 data.amount,
 	 data.msg,
-	 data.recp, 
+	 data.recp,
+	 data.moveCount, 
 	 data.msgTxt);
 }
 
 struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
 	struct clientMsg data;
-	sscanf(buf, "%d$%d$%d$%d$%s$",
+	sscanf(buf, "%d$%d$%d$%d$%d$%s$",
 	 &data.heap,
 	 &data.amount,
 	 &data.msg,
-	 &data.recp, 
+	 &data.recp,
+	 &data.moveCount,
 	 data.msgTxt);
 
 	return data;
@@ -389,7 +395,7 @@ struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
 
 struct gameData parseGameData(char buf[MSG_SIZE]){
 	struct gameData data;
-	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
 	 &data.valid,
 	 &data.win,
 	 &data.numOfPlayers,
@@ -399,13 +405,14 @@ struct gameData parseGameData(char buf[MSG_SIZE]){
 	 &data.heapA, 
 	 &data.heapB, 
 	 &data.heapC, 
-	 &data.heapD);
+	 &data.heapD,
+	 &data.moveCount);
 
 	return data;
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
 	 data.valid,
 	 data.win,
 	 data.numOfPlayers,
@@ -415,5 +422,6 @@ void createGameDataBuff(struct gameData data, char* buf){
 	 data.heapA, 
 	 data.heapB, 
 	 data.heapC, 
-	 data.heapD);
+	 data.heapD,
+	 data.moveCount);
 }
