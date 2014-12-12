@@ -22,7 +22,7 @@
 int MSG_SIZE=50;
 
 struct gameData{
-	int valid; 
+	int valid; // 0 - not valid, 1 - valid, -1 - can't connect - too many clients connected
 	int win; // 0 - no one, 1 - player win, 2 - player lost
 	int numOfPlayers; // p - then number of players the server allows to play
 	int myPlayerId; // player id (0 - p-1), if i dont play: -1
@@ -61,6 +61,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf);
 void createGameDataBuff(struct gameData data, char* buf);
 struct gameData parseGameData(char buf[MSG_SIZE]);
 void PRINT_Debug(char* msg);
+void SendCantConnectToClient(int fd);
 
 #define DEBUG 1
 
@@ -147,17 +148,19 @@ int main(int argc, char** argv){
 	FD_ZERO(fdSet);
 	FD_SET(sockListen, fdSet);
 
-	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	while(1){
+		// Waiting for 
 		fdCurr = select(maxClientNum+1, fdSet, NULL, NULL, NULL);
 		if(fdCurr == sockListen){
+			// New Client is trying to connect
+
 			/*printf("Trying to accept\n");*/
 			fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
 			checkForNegativeValue(fdCurr, "accept", fdCurr);
 			/*printf("Accepted\n");*/
 			if( (conViewers + conPlayers) == 9){
-
-			
+				// too much connected clients. sending "can't connect" to client
+				SendCantConnectToClient(fdCurr);
 			}
 			FD_SET(fdCurr, fd_set);
 			continue;
@@ -218,6 +221,19 @@ int main(int argc, char** argv){
 		sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	}
 
+}
+
+void SendCantConnectToClient(int fd){
+	int errorIndicator;
+	char buf[MSG_SIZE];
+	struct gameData game;
+
+	// -1 stands for too many clients connected
+	game.valid =-1;
+	createGameDataBuff(game, &buf);
+
+	errorIndicator = sendAll(fd, buf, &MSG_SIZE);
+	checkForNegativeValue(errorIndicator, "send", sock);
 }
 
 void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove){
