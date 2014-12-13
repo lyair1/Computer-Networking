@@ -34,7 +34,9 @@ int conPlayers = 0;
 int conViewers = 0;
 
 struct gameData{
-	int valid; // 0 - not valid, 1 - valid, -1 - can't connect - too many clients connected
+	int valid; 
+	int msg; // <sender Id> - this is a message, (-1) - this is not a msg
+	int isMyTurn; // 0 - no, 1 - yes
 	int win; // 0 - no one, 1 - player win, 2 - player lost
 	int numOfPlayers; // p - then number of players the server allows to play
 	int myPlayerId; // player id (0 - p-1), if i dont play: -1
@@ -44,7 +46,8 @@ struct gameData{
 	int heapB;
 	int heapC;
 	int heapD;
-	int moveCount; // amount of move that were made 
+	int moveCount; // amount of move that were made
+	char msgTxt[10];
 };
 
 struct clientMsg{
@@ -499,8 +502,10 @@ struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
 
 struct gameData parseGameData(char buf[MSG_SIZE]){
 	struct gameData data;
-	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
 	 &data.valid,
+	 &data.isMyTurn,
+	 &data.msg,
 	 &data.win,
 	 &data.numOfPlayers,
 	 &data.myPlayerId, 
@@ -510,14 +515,17 @@ struct gameData parseGameData(char buf[MSG_SIZE]){
 	 &data.heapB, 
 	 &data.heapC, 
 	 &data.heapD,
-	 &data.moveCount);
+	 &data.moveCount,
+	 &data.msgTxt);
 
 	return data;
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$",
+	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
 	 data.valid,
+	 data.isMyTurn,
+	 data.msg,
 	 data.win,
 	 data.numOfPlayers,
 	 data.myPlayerId, 
@@ -527,5 +535,6 @@ void createGameDataBuff(struct gameData data, char* buf){
 	 data.heapB, 
 	 data.heapC, 
 	 data.heapD,
-	 data.moveCount);
+	 data.moveCount,
+	 data.msgTxt);
 }
