@@ -75,7 +75,7 @@ Game over
 	If all the stacks are 0's (after some client played) the server sends 'gameData' obj to all clients with:
 
 		valid = 1
-		win = 1 - you win. 0 - you lose
+		win = <player id> - if on missery so this the player that lost.
 
 
 
