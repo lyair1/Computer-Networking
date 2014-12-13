@@ -1,0 +1,91 @@
+Protocol:
+
+Server -----'GameData'----> Client
+Server <----'ClientMsg'-----Client
+
+Scenarios:
+
+****************************
+client connect to server:
+****************************
+
+	1) client try to connect and  there are too many clients already connected to the server:
+		client gets:
+			valid = 0
+		client ignores all other 'GameData' params.
+
+	2) Client connect succesfully:
+		client gets:
+			valid =  1
+			and all the other params... (p, viewer or player, id, ....)
+
+****************************
+Server send msg to the client:
+****************************
+
+	happenes after any move is being played by any player. (server send data to all clients, viewers and players):
+
+	1) the 'GameData' obj will contain all of the data ('moveCount++') and (isMyTurn changes if it is the client turn)
+
+	Client mode changed from viewer to player:
+
+	2) send the 'GameData' obj with all of the regular data without move count ++ ('playing' changes from 0 to 1)
+
+****************************
+Server Response to client msg:
+****************************
+
+	Client sends a "clientMsg" to the server:
+
+		msg == 0:
+
+		this is a move, the move will be sent by the client ONLY when this is his turn!
+
+		Server response:
+
+			'gameData' obj with all of the data of the new turn game (valid == 0 if the move was invalid: e.g. reduce 10 from stack of 2)
+
+
+		msg == 1:
+
+		this is a msg, can be sent to the server at any time by any client.
+
+		Server Response:
+
+			if the msg is valid (the recp is a valid player id, or 0 for 'send to all') the server sends 'GameData' obj to the right client with:
+
+			valid = 1
+			msg = <sender player index>
+			msgTxt = 'msg text'
+
+			all other params will be ignored
+
+****************************
+Server notify viewer client that he turns to be a player
+****************************
+
+	Server sends a 'GameData' obj with:
+
+		valid = 1
+		playing = 1
+		isMyTurn
+
+		other params will be ignored
+
+****************************
+
+****************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
