@@ -108,8 +108,8 @@ int main(int argc, char const *argv[])
 	// Connect to server
 	sock = connectToServer(sock, address, port);
 	
-	char buf[MSG_SIZE];
-	struct clientMsg m;
+	/*char buf[MSG_SIZE];*/
+	/*struct clientMsg m;*/
 	// Get initial data 
 	game = receiveDataFromServer(sock);
 	//got the initial data from the server
@@ -147,7 +147,7 @@ int main(int argc, char const *argv[])
 		 printf("Your turn:\n");
 	}
 
-	struct fd_set fdSetRead, fdSetWrite;
+	fd_set fdSetRead, fdSetWrite;
 	struct clientMsg cm;
 	
 	
