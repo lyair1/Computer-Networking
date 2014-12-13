@@ -7,7 +7,10 @@
 #include <errno.h> 
 #include <string.h>
 #include <unistd.h>
+#define STDIN 0
 
+// select
+#include <sys/select.h>
 //Sockets
 #include <sys/socket.h>
 //Internet addresses
@@ -19,7 +22,7 @@
 //Working with errno to report errors
 #include <errno.h>
 
-int MSG_SIZE=50;
+int MSG_SIZE=300;
 
 struct gameData{
 	int valid; 
@@ -35,7 +38,7 @@ struct gameData{
 	int heapC;
 	int heapD;
 	int moveCount; // amount of move that were made
-	char msgTxt[10];
+	char msgTxt[MSG_SIZE-100];
 };
 
 struct clientMsg{
@@ -44,7 +47,7 @@ struct clientMsg{
 	int msg; // 1 - this is a message, 0 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
 	int moveCount; // amount of move that were made
-	char msgTxt[10];
+	char msgTxt[MSG_SIZE-100];
 };
 
 // client globals
@@ -58,14 +61,14 @@ void printValid(struct gameData game);
 struct clientMsg getMoveFromInput(int sock);
 
 // common
-int sendAll(int s, char *buf, int *len);
+int sendAll(int s, char *buf);
 int receiveAll(int s, char *buf, int *len);
 void checkForZeroValue(int num, int sock);
 void checkForNegativeValue(int num, char* func, int sock);
-struct clientMsg parseClientMsg(char buf[MSG_SIZE]);
+int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data);
 void createClientMsgBuff(struct clientMsg data, char* buf);
 void createGameDataBuff(struct gameData data, char* buf);
-struct gameData parseGameData(char buf[MSG_SIZE]);
+int parseGameData(char buf[MSG_SIZE], struct gameData* data);
 
 int main(int argc, char const *argv[])
 { 
@@ -136,6 +139,8 @@ int main(int argc, char const *argv[])
 		 printf("You are only viewing\n");
 	}
 
+	struct fd_set fdSetRead, fdSetWrite;
+
 	//printGameState(game);
 	while(game.win == 0){
 		// m = getMoveFromInput(sock);
@@ -150,6 +155,51 @@ int main(int argc, char const *argv[])
 		// printValid(game); 
 		// // keep on playing
 		// printGameState(game);
+
+		// clear set and add listner
+
+		// TODO: need to add timeout
+
+		int maxClientFd = sock;
+
+		FD_ZERO(&fdSetRead);
+		FD_ZERO(&fdSetWrite);
+		if (playing == 1)
+		{
+			// not only a viewer
+			FD_SET(STDIN, &fdSetRead);
+		}
+		
+		FD_SET(sock, &fdSetRead);
+
+		int fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
+
+		if(fdReady == 0){
+			continue;
+		}
+
+		char readBuf[MSG_SIZE];
+		int rSize = MSG_SIZE;
+		
+		if(FD_ISSET(STDIN , &fdSetRead) == 1){
+			// there is input from cmd
+			receiveAll(STDIN, readBuf, &rSize);
+			printf("Read from STDIN:%s\n", readBuf);
+
+			struct clientMsg cm;
+			parseClientMsg(readBuf, &cm);
+
+			if (cm.msg == 1)
+			{
+				// this is message
+
+			}
+		}
+
+		if(FD_ISSET(sock , &fdSetRead) == 1){
+			receiveAll(sock, readBuf, &rSize);
+			printf("Read from sock rcv:%s\n", readBuf);
+		}
 
 
 	}
@@ -249,7 +299,7 @@ struct gameData receiveDataFromServer(int sock)
     	exit(2);
 	}
 
-	game = parseGameData(buf);
+	parseGameData(buf, &game);
 
 	/*printf("Data Received from server: %s\n",buf);*/
 
@@ -288,19 +338,19 @@ void printGameState(struct gameData game){
 	printf("Heap sizes are %d,%d,%d,%d\n",game.heapA, game.heapB, game.heapC, game.heapD);
 }
 
-int sendAll(int s, char *buf, int *len) {
+int sendAll(int s, char *buf) {
 	int total = 0; /* how many bytes we've sent */
-	int bytesleft = *len; /* how many we have left to send */
+	int bytesleft = strlen(buf); /* how many we have left to send */
    	int n;
+   	int len = strlen(buf);
 	
-	while(total < *len) {
+	while(total < len) {
 			n = send(s, buf+total, bytesleft, 0);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
 	  	}
-	*len = total; /* return number actually sent here */
 	  	
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
@@ -310,7 +360,9 @@ int sendAll(int s, char *buf, int *len) {
  	size_t bytesleft = *len; /* how many we have left to receive */
     int n;
 	
-	while(total < *len) {
+	struct gameData gd;
+
+	while(total < *len && parseGameData(buf, &gd) < 14) {
 			n = recv(s, buf+total, bytesleft, 0);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
@@ -348,38 +400,32 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 	 data.msgTxt);
 }
 
-struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
-	struct clientMsg data;
-	sscanf(buf, "%d$%d$%d$%d$%d$%s$",
-	 &data.heap,
-	 &data.amount,
-	 &data.msg,
-	 &data.recp,
-	 &data.moveCount,
-	 data.msgTxt);
-
-	return data;
+ int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
+	return sscanf(buf, "%d$%d$%d$%d$%d$%s$",
+	 &data->heap,
+	 &data->amount,
+	 &data->msg,
+	 &data->recp,
+	 &data->moveCount,
+	 &data->msgTxt[0]);
 }
 
-struct gameData parseGameData(char buf[MSG_SIZE]){
-	struct gameData data;
-	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
-	 &data.valid,
-	 &data.isMyTurn,
-	 &data.msg,
-	 &data.win,
-	 &data.numOfPlayers,
-	 &data.myPlayerId, 
-	 &data.playing, 
-	 &data.isMisere, 
-	 &data.heapA, 
-	 &data.heapB, 
-	 &data.heapC, 
-	 &data.heapD,
-	 &data.moveCount,
-	 &data.msgTxt[0]);
-
-	return data;
+ int parseGameData(char buf[MSG_SIZE], struct gameData* data){
+	return sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+	 &data->valid,
+	 &data->isMyTurn,
+	 &data->msg,
+	 &data->win,
+	 &data->numOfPlayers,
+	 &data->myPlayerId, 
+	 &data->playing, 
+	 &data->isMisere, 
+	 &data->heapA, 
+	 &data->heapB, 
+	 &data->heapC, 
+	 &data->heapD,
+	 &data->moveCount,
+	 &data->msgTxt[0]);
 }
 
 void createGameDataBuff(struct gameData data, char* buf){

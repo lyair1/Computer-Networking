@@ -8,6 +8,8 @@
 #include <math.h>
 #include <unistd.h>
 
+// select
+#include <sys/select.h>
 //Sockets
 #include <sys/socket.h>
 //Internet addresses
@@ -19,19 +21,7 @@
 //Working with errno to report errors
 #include <errno.h>
 
-int MSG_SIZE=50;
-
-struct clientData{
-	int fd;			// fd that was returned from select
-	int clientNum;	// client number implemented bonus style
-	int isPlayer;
-}
-
-struct clientData ClientsQueue[10];	// queue for connected clients
-int minFreeClientNum = 1;			// lowest available client number
-int clientIndexTurn = 0;			// current turn of client (index according to queue)
-int conPlayers = 0;					// amount of connected players
-int conViewers = 0;					// amount of connected viewers
+int MSG_SIZE=300;
 
 struct gameData{
 	int valid; 
@@ -47,7 +37,7 @@ struct gameData{
 	int heapC;
 	int heapD;
 	int moveCount; // amount of move that were made
-	char msgTxt[10];
+	char msgTxt[MSG_SIZE-100];
 };
 
 struct clientMsg{
@@ -56,9 +46,20 @@ struct clientMsg{
 	int msg; // 1 - this is a message, 0 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
 	int moveCount; // amount of move that were made
-	char msgTxt[10];
+	char msgTxt[MSG_SIZE-100];
 };
 
+struct clientData{
+	int fd;			// fd that was returned from select
+	int clientNum;	// client number implemented bonus style
+	int isPlayer;
+}
+
+struct clientData ClientsQueue[10];	// queue for connected clients
+int minFreeClientNum = 1;			// lowest available client number
+int clientIndexTurn = 0;			// current turn of client (index according to queue)
+int conPlayers = 0;					// amount of connected players
+int conViewers = 0;					// amount of connected viewers
 
 int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
@@ -67,14 +68,15 @@ int MaxNum(int a, int b, int c, int d);
 void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove);
 
 // common
-int sendAll(int s, char *buf, int *len);
+int sendAll(int s, char *buf);
 int receiveAll(int s, char *buf, int *len);
 void checkForZeroValue(int num, int sock);
 void checkForNegativeValue(int num, char* func, int sock);
-struct clientMsg parseClientMsg(char buf[MSG_SIZE]);
+int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data);
 void createClientMsgBuff(struct clientMsg data, char* buf);
 void createGameDataBuff(struct gameData data, char* buf);
-struct gameData parseGameData(char buf[MSG_SIZE]);
+int parseGameData(char buf[MSG_SIZE], struct gameData* data);
+
 void PRINT_Debug(char* msg);
 void SendCantConnectToClient(int fd);
 
@@ -541,38 +543,32 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 	 data.msgTxt);
 }
 
-struct clientMsg parseClientMsg(char buf[MSG_SIZE]){
-	struct clientMsg data;
-	sscanf(buf, "%d$%d$%d$%d$%d$%s$",
-	 &data.heap,
-	 &data.amount,
-	 &data.msg,
-	 &data.recp,
-	 &data.moveCount,
-	 data.msgTxt);
-
-	return data;
+ int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
+	return sscanf(buf, "%d$%d$%d$%d$%d$%s$",
+	 &data->heap,
+	 &data->amount,
+	 &data->msg,
+	 &data->recp,
+	 &data->moveCount,
+	 &data->msgTxt[0]);
 }
 
-struct gameData parseGameData(char buf[MSG_SIZE]){
-	struct gameData data;
-	sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
-	 &data.valid,
-	 &data.isMyTurn,
-	 &data.msg,
-	 &data.win,
-	 &data.numOfPlayers,
-	 &data.myPlayerId, 
-	 &data.playing, 
-	 &data.isMisere, 
-	 &data.heapA, 
-	 &data.heapB, 
-	 &data.heapC, 
-	 &data.heapD,
-	 &data.moveCount,
-	 &data.msgTxt[0]);
-
-	return data;
+ int parseGameData(char buf[MSG_SIZE], struct gameData* data){
+	return sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+	 &data->valid,
+	 &data->isMyTurn,
+	 &data->msg,
+	 &data->win,
+	 &data->numOfPlayers,
+	 &data->myPlayerId, 
+	 &data->playing, 
+	 &data->isMisere, 
+	 &data->heapA, 
+	 &data->heapB, 
+	 &data->heapC, 
+	 &data->heapD,
+	 &data->moveCount,
+	 &data->msgTxt[0]);
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
