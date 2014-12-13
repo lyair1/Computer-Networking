@@ -47,6 +47,8 @@ struct clientMsg{
 	char msgTxt[10];
 };
 
+// client globals
+int playerId, playing, isMisere, moveCount;
 
 int connectToServer(int sock, const char* address, char* port);
 void printGameState(struct gameData game);
@@ -106,27 +108,50 @@ int main(int argc, char const *argv[])
 	struct clientMsg m;
 	// Get initial data
 	struct gameData game = receiveDataFromServer(sock);
-	if (game.isMisere == 1)
+	//got the initial data from the server
+	if (game.valid == 0)
+	{
+		 printf("Client rejected: too many clients are already connected\n");
+		 return 0;
+	}
+
+	playing = game.playing;
+	playerId = game.myPlayerId;
+	isMisere = game.isMisere;
+	moveCount = moveCount;
+
+	if (isMisere == 1)
 	{
 		printf("This is a Misere game\n");
 	}else{
 		printf("This is a Regular game\n");
 	}
 
-	printGameState(game);
-	while(game.win == -1){
-		m = getMoveFromInput(sock);
-		sprintf(buf, "%d$%d", m.heap,m.amount);
-		if(sendAll(sock, buf, &MSG_SIZE) == -1){
-			close(sock);
-			exit(0);
-		}
-		game = receiveDataFromServer(sock);
+	printf("Number of players is %d\n", game.numOfPlayers);
+	if (playing == 1)
+	{
+		 printf("You are client %d\n", playerId);
+		 printf("You are playing\n");
+	}else{
+		 printf("You are only viewing\n");
+	}
 
-		// Check if move was valid
-		printValid(game);
-		// keep on playing
-		printGameState(game);
+	//printGameState(game);
+	while(game.win == 0){
+		// m = getMoveFromInput(sock);
+		// sprintf(buf, "%d$%d", m.heap,m.amount);
+		// if(sendAll(sock, buf, &MSG_SIZE) == -1){
+		// 	close(sock);
+		// 	exit(0);
+		// }
+		// game = receiveDataFromServer(sock);
+
+		// // Check if move was valid
+		// printValid(game); 
+		// // keep on playing
+		// printGameState(game);
+
+
 	}
 
 	printWinner(game);
@@ -243,12 +268,19 @@ void printValid(struct gameData game)
 
 void printWinner(struct gameData game)
 {
-	if (game.win == 1)
+	if (game.playing == 0)
+	{
+		printf("Game over!\n");
+
+		return;
+	}
+
+	if (game.win == playerId)
 	{
 		printf("You win!\n");
-	}else if (game.win == 2)
+	}else
 	{
-		printf("I win!\n");
+		printf("You lose!\n");
 	}	
 }
 
@@ -345,7 +377,7 @@ struct gameData parseGameData(char buf[MSG_SIZE]){
 	 &data.heapC, 
 	 &data.heapD,
 	 &data.moveCount,
-	 &data.msgTxt);
+	 &data.msgTxt[0]);
 
 	return data;
 }

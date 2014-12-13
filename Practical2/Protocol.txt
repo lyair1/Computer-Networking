@@ -73,10 +73,15 @@ Server notify viewer client that he turns to be a player
 		other params will be ignored
 
 ****************************
-
+Game over
 ****************************
 
+	If all the stacks are 0's (after some client played) the server sends 'gameData' obj to all clients with:
 
+		valid = 1
+		win = <player id> who win
+
+	
 
 
 
