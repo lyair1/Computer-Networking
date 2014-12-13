@@ -21,7 +21,10 @@
 //Working with errno to report errors
 #include <errno.h>
 
-int MSG_SIZE=300;
+
+#define MSG_SIZE 300
+
+int msg_SIZE = 300;
 
 struct gameData{
 	int valid; 
@@ -37,7 +40,7 @@ struct gameData{
 	int heapC;
 	int heapD;
 	int moveCount; // amount of moves that were made
-	char msgTxt[MSG_SIZE-100];
+	char msgTxt[MSG_SIZE - 100]; // TODO: unknown error with 'MSG_SIZE - 100' while compiling
 };
 
 struct clientMsg{
@@ -46,14 +49,14 @@ struct clientMsg{
 	int msg; // 1 - this is a message, 0 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
 	int moveCount; // amount of move that were made
-	char msgTxt[MSG_SIZE-100];
+	char msgTxt[MSG_SIZE - 100]; // TODO: unknown error with 'MSG_SIZE - 100' while compiling
 };
 
 struct clientData{
 	int fd;			// fd that was returned from select
 	int clientNum;	// client number implemented bonus style
 	int isPlayer;
-}
+};
 
 struct clientData ClientsQueue[10];	// queue for connected clients
 int minFreeClientNum = 1;			// lowest available client number
@@ -68,7 +71,7 @@ int MaxNum(int a, int b, int c, int d);
 void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove);
 
 // common
-int sendAll(int s, char *buf);
+int sendAll(int s, char *buf, int *len);
 int receiveAll(int s, char *buf, int *len);
 void checkForZeroValue(int num, int sock);
 void checkForNegativeValue(int num, char* func, int sock);
@@ -175,14 +178,14 @@ int main(int argc, char** argv){
 	/*printf("Succesfully binded %d\n", sock);*/
 
 	errorIndicator=listen(sockListen, 5);
-	checkForNegativeValue(errorIndicator, "listen", sock);
+	checkForNegativeValue(errorIndicator, "listen", sockListen);
 	/*printf("Succesfully started listening: %d\n", sock);*/
 	
 	while(1){
 		// clear set and add listner
 		maxClientFd = 0;
-		FD_ZERO(fdSetRead);
-		FD_ZERO(fdSetWrite);
+		FD_ZERO(&fdSetRead);
+		FD_ZERO(&fdSetWrite);
 		FD_SET(sockListen, &fdSetRead);
 
 		// add all clients to fdSetRead
@@ -193,7 +196,7 @@ int main(int argc, char** argv){
 		}
 
 		// TODO: need to add timeout
-		fdReady = select(maxClientFd+1, fdSetRead, fdSetWrite, NULL, NULL);
+		fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 
 		if(fdReady == 0){
 			continue;
@@ -206,14 +209,14 @@ int main(int argc, char** argv){
 					// Client is ready to send data.
 					// it is not the client turn & it's not the listner
 					// hence, only message is legal
-					errorIndicator = receiveAll(ClientsQueue[i].fd, buf, &MSG_SIZE);
+					errorIndicator = receiveAll(ClientsQueue[i].fd, buf, &msg_SIZE);
 					if(errorIndicator < 0){
 						close(ClientsQueue[i].fd);
 						delClientFromQueue(ClientsQueue[i].fd);
 						//updateClientsOnChange(ClientsQueue[i].clientNum, 0);
 					}
 					else{
-						clientMove = parseClientMsg(buf);
+						parseClientMsg(buf, &clientMove);
 						handleMsg(clientMove, i);
 					}
 				}
@@ -224,13 +227,13 @@ int main(int argc, char** argv){
 		if(FD_ISSET(ClientsQueue[clientIndexTurn].fd , &fdSetRead)){
 			// Client with turn is ready to send data.
 			// TODO: what if he sends a message? 
-			errorIndicator = receiveAll(ClientsQueue[clientIndexTurn].fd, buf, &MSG_SIZE);
+			errorIndicator = receiveAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
 			if(errorIndicator < 0){
 				close(ClientsQueue[i].fd);
 				delClientFromQueue(ClientsQueue[i].fd);
 			}
 			else{
-				clientMove = parseClientMsg(buf);
+				parseClientMsg(buf, &clientMove);
 				CheckAndMakeClientMove(&game, clientMove);
 				if(sendProperDataAfterMove(game)){
 					//game over
@@ -275,10 +278,10 @@ void SendCantConnectToClient(int fd){
 
 	// -1 stands for too many clients connected
 	game.valid =-1;
-	createGameDataBuff(game, &buf);
+	createGameDataBuff(game, buf);
 
-	errorIndicator = sendAll(fd, buf, &MSG_SIZE);
-	checkForNegativeValue(errorIndicator, "send", sock);
+	errorIndicator = sendAll(fd, buf, &msg_SIZE);
+	checkForNegativeValue(errorIndicator, "send", fd);
 
 	close(fd);
 }
@@ -335,14 +338,14 @@ void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove)
 			game->valid=0;
 	}
 
-	if(IsBoardClear(game)){
-		if(game.isMisere){
+	if(IsBoardClear(*game)){
+		if(game->isMisere){
 			// all other clients win
-			game.win=2;
+			game->win=2;
 		}
 		else{
 			// Client win
-			game.win=1;
+			game->win=1;
 		}
 	}
 }
@@ -478,26 +481,25 @@ int delClientFromQueue(int fd){
 	int i;
 	struct clientData delClient;
 
-	// find and copy deleted client
-	for(i=0; i< conViewers+Players; i++){
+	/* find and copy deleted client*/
+	for(i=0; i< conViewers+conPlayers; i++){
 		if(ClientsQueue[i].fd == fd){
 			delClient = ClientsQueue[i];
 			break;
 		}
 	}
 
-	// preserve global turn
+	/* preserve global turn*/
 	if(i < clientIndexTurn){
 		clientIndexTurn--;
 	}
 
-	// move clients after deleted client to the left
-	for(; i< conViewers+Players - 1; i++){
+	/* move clients after deleted client to the left*/
+	for(; i< conViewers+conPlayers - 1; i++){
 		ClientsQueue[i] = ClientsQueue[i+1];
-		}
 	}
-
-	// update globals
+	
+	/* update globals */
 	if(delClient.clientNum < minFreeClientNum){
 		minFreeClientNum = delClient.clientNum;
 	}
@@ -518,20 +520,20 @@ int delClientFromQueue(int fd){
 */
 int sendProperDataAfterMove(struct gameData data){
 	char buf[MSG_SIZE], bufToFollowingPlayer[MSG_SIZE];
-	int i;
+	int i, errorIndicator;
 	createGameDataBuff(data, buf);
 
-	game.isMyTurn = 1;
-	game.win = 0;
+	data.isMyTurn = 1;
+	data.win = 0;
 	createGameDataBuff(data, bufToFollowingPlayer);
 
 	if(IsBoardClear(data)){
 		// indicating that game is over
-		game.win = clientIndexTurn;
+		data.win = clientIndexTurn;
 		createGameDataBuff(data, buf);
 
 		for(i=0 ; i < conPlayers + conViewers ; i++){
-			errorIndicator = sendAll(ClientsQueue[i].fd, buf, &MSG_SIZE);
+			errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
 		}
 		return 1;
 	}
@@ -539,11 +541,11 @@ int sendProperDataAfterMove(struct gameData data){
 		// advance turn 
 		clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
 
-		if(game.valid){
+		if(data.valid){
 			// sending valid move to all players besides the next one to play
 			for(i=0 ; i < conPlayers + conViewers ; i++){
 				if(i != clientIndexTurn){
-					errorIndicator = sendAll(ClientsQueue[i].fd, buf, &MSG_SIZE);
+					errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
 					if(errorIndicator<0){
 						close(ClientsQueue[i].fd);
 						delClientFromQueue(ClientsQueue[i].fd);
@@ -552,7 +554,7 @@ int sendProperDataAfterMove(struct gameData data){
 			}
 
 			// sending valid move and YOUR_TURN to next client to play
-			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, bufToFollowingPlayer, &MSG_SIZE);
+			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, bufToFollowingPlayer, &msg_SIZE);
 			if(errorIndicator<0){
 				close(ClientsQueue[clientIndexTurn].fd);
 				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
@@ -561,7 +563,7 @@ int sendProperDataAfterMove(struct gameData data){
 
 		else{
 			// sending invalid move only to the player which made it
-			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, buf, &MSG_SIZE);
+			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
 			if(errorIndicator<0){
 				close(ClientsQueue[clientIndexTurn].fd);
 				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
@@ -586,15 +588,15 @@ void handleMsg(struct clientMsg clientMove,int index){
 	char buf[MSG_SIZE];
 
 	data.valid = 1;
-	data.msg = i;
+	data.msg = index;
 	strcpy(data.msgTxt, clientMove.msgTxt);
-	createClientMsgBuff(data, buf)
+	createClientMsgBuff(clientMove, buf);
 
-	if(recp == -1){
+	if(clientMove.recp == -1){
 		// send to all except the sender
 		for (i=0; i< conPlayers + conViewers ; i++){
 			if(i != index){
-				sendAll(ClientsQueue[i].fd, buf, MSG_SIZE);
+				sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
 			}
 		}
 	}
@@ -602,7 +604,7 @@ void handleMsg(struct clientMsg clientMove,int index){
 		// send only to a specific client number
 		for (i=0; i< conPlayers + conViewers ; i++){
 			if(ClientsQueue[i].clientNum == clientMove.recp){
-				sendAll(ClientsQueue[i].fd, buf, MSG_SIZE);
+				sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
 			}
 		}
 	}
