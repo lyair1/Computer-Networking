@@ -27,11 +27,11 @@ struct clientData{
 	int isPlayer;
 }
 
-struct clientData ClientsQueue[10];
-int minFreeClientNum = 1;
-int clientIndexTurn = 0;
-int conPlayers = 0;
-int conViewers = 0;
+struct clientData ClientsQueue[10];	// queue for connected clients
+int minFreeClientNum = 1;			// lowest available client number
+int clientIndexTurn = 0;			// current turn of client (index according to queue)
+int conPlayers = 0;					// amount of connected players
+int conViewers = 0;					// amount of connected viewers
 
 struct gameData{
 	int valid; 
@@ -91,13 +91,14 @@ void PRINT_Debug(char* msg){
 
 int main(int argc, char** argv){
 	int sockListen, errorIndicator;
-	int clientNum[9][1], maxClientNum;
+	int fdCurr, fdReady, maxClientFd;
+	int i;
 	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
 	/*struct socklen_t *addrlen;*/
 	char buf[MSG_SIZE];
-	fd_set fdSet;
+	fd_set fdSetRead, fdSetWrite;
 
 	int M, port, p;
 	struct gameData game;
@@ -162,38 +163,90 @@ int main(int argc, char** argv){
 		/*printf("Succesfully started listening: %d\n", sock);*/
 	}
 
-	// initilaizing fdSet with listner only
-	FD_ZERO(fdSet);
-	FD_SET(sockListen, fdSet);
-
 	while(1){
-		// Waiting for 
-		fdCurr = select(maxClientNum+1, fdSet, NULL, NULL, NULL);
+		// clear set and add listner
+		maxClientFd = 0;
+		FD_ZERO(fdSetRead);
+		FD_ZERO(fdSetWrite);
+		FD_SET(sockListen, &fdSetRead);
 
-		if(fdCurr == sockListen){
+		// add all clients to fdSetRead
+		for(i=0 ; i< conViewers + conPlayers ; i++){
+			FD_SET(ClientsQueue[i].fd, &fdSetRead);
+			FD_SET(ClientsQueue[i].fd, &fdSetWrite);
+			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
+		}
+
+		// TODO: need to add timeout
+		fdReady = select(maxClientFd+1, fdSetRead, fdSetWrite, NULL, NULL);
+
+		if(fdReady == 0){
+			continue;
+		}
+
+		// handling messages first
+		for(i=0 ; i< conViewers + conPlayers ; i++){
+			if(FD_ISSET(ClientsQueue[i].fd , &fdSetRead)){
+				if((i != clientIndexTurn) && (ClientsQueue[i].fd != sockListen)){
+					// Client is ready to send data.
+					// it is not the client turn & it's not the listner
+					// hence, only message is legal
+					errorIndicator = receiveAll(ClientsQueue[i].fd, buf, &MSG_SIZE);
+					if(errorIndicator < 0){
+						close(ClientsQueue[i].fd);
+						delClientFromQueue(ClientsQueue[i].fd);
+						// TODO : tell all other clients
+					}
+					clientMove = parseClientMsg(buf);
+					// TODO: send msg to relevant clients. in select?
+				}
+			}
+		}
+
+
+		// handling move by client
+		if(FD_ISSET(ClientsQueue[clientIndexTurn].fd , &fdSetRead)){
+			// Client with turn is ready to send data.
+			// TODO: what if he sends a message? 
+			errorIndicator = receiveAll(ClientsQueue[clientIndexTurn].fd, buf, &MSG_SIZE);
+			if(errorIndicator < 0){
+				close(ClientsQueue[i].fd);
+				delClientFromQueue(ClientsQueue[i].fd);
+				// TODO : tell all other clients
+			}
+			clientMove = parseClientMsg(buf);
+			// TODO: make move and send msg to relevant clients. in select?
+		}
+
+		if(FD_ISSET(sockListen , &fdSetRead)){
 			// New Client is trying to connect
 
 			/*printf("Trying to accept\n");*/
 			fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
 			checkForNegativeValue(fdCurr, "accept", fdCurr);
-			/*printf("Accepted\n");*/
-			if( (conViewers + conPlayers) == 9){
-				// too much connected clients. sending "can't connect" to client
-				SendCantConnectToClient(fdCurr);
-			}
-			else if(conPlayers == p){
-				// max amount of players. new client is a viewer
-				++maxClientNum;
-
+			if(fdCurr < 0){
+				// TODO: nothing to be done?
 			}
 			else{
-				// new client is a player
+				if( (conViewers + conPlayers) == 9){
+					// too much connected clients. sending "can't connect" to client
+					SendCantConnectToClient(fdCurr);
+				}
+				else if(conPlayers == p){
+					// max amount of players. new client is a viewer
+					addClientToQueue(fdCurr, 0);
+					// TODO: tell all clients
+				}
+				else{
+					// new client is a player
+					addClientToQueue(fdCurr, 1);
+					// TODO: tell all clients
+				}
 			}
+
 			FD_SET(fdCurr, fd_set);
 			continue;
 		}
-
-
 
 		/*printf("trying to send all\n");*/
 		errorIndicator = sendAll(sock, buf, &MSG_SIZE);
@@ -317,7 +370,6 @@ void checkForNegativeValue(int num, char* func, int sock){
 	if(num<0){
 		printf( "Error: %s\n", strerror(errno) );
 		close(sock);
-		exit(1);
 	}
 }
 
@@ -470,9 +522,11 @@ int delClientFromQueue(int fd){
 	}
 	if(delClient.isPlayer){
 		conPlayers--;
+		return 1;
 	}
 	else{
 		conViewers--;
+		return 0;
 	}
 }
 
