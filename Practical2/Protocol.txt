@@ -27,10 +27,6 @@ Server send msg to the client:
 
 	1) the 'GameData' obj will contain all of the data ('moveCount++') and (isMyTurn changes if it is the client turn)
 
-	Client mode changed from viewer to player:
-
-	2) send the 'GameData' obj with all of the regular data without move count ++ ('playing' changes from 0 to 1)
-
 ****************************
 Server Response to client msg:
 ****************************
@@ -81,7 +77,7 @@ Game over
 		valid = 1
 		win = <player id> who win
 
-	
+
 
 
 

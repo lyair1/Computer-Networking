@@ -26,7 +26,7 @@ int MSG_SIZE=300;
 
 struct gameData{
 	int valid; 
-	int msg; // <sender Id> - this is a message, (-1) - this is not a msg
+	int msg; // <sender Id> - this is a message, (-1) - send to all - (0) this is not a msg
 	int isMyTurn; // 0 - no, 1 - yes
 	int win; // 0 - no one, <player id> - the player id who won
 	int numOfPlayers; // p - then number of players the server allows to play
@@ -38,7 +38,7 @@ struct gameData{
 	int heapC;
 	int heapD;
 	int moveCount; // amount of move that were made
-	char msgTxt[MSG_SIZE-100];
+	char msgTxt[100];
 };
 
 struct clientMsg{
@@ -47,18 +47,19 @@ struct clientMsg{
 	int msg; // 1 - this is a message, 0 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
 	int moveCount; // amount of move that were made
-	char msgTxt[MSG_SIZE-100];
+	char msgTxt[100];
 };
 
 // client globals
-int playerId, playing, isMisere, moveCount;
+int playerId, playing, isMisere, moveCount, myTurn;
+struct gameData game;
 
 int connectToServer(int sock, const char* address, char* port);
 void printGameState(struct gameData game);
 void printWinner(struct gameData game);
 struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
-struct clientMsg getMoveFromInput(int sock);
+struct clientMsg getMoveFromInput(int sock, char* cmd);
 
 // common
 int sendAll(int s, char *buf);
@@ -109,8 +110,8 @@ int main(int argc, char const *argv[])
 	
 	char buf[MSG_SIZE];
 	struct clientMsg m;
-	// Get initial data
-	struct gameData game = receiveDataFromServer(sock);
+	// Get initial data 
+	game = receiveDataFromServer(sock);
 	//got the initial data from the server
 	if (game.valid == 0)
 	{
@@ -121,7 +122,8 @@ int main(int argc, char const *argv[])
 	playing = game.playing;
 	playerId = game.myPlayerId;
 	isMisere = game.isMisere;
-	moveCount = moveCount;
+	moveCount = game.moveCount;
+	myTurn = game.isMyTurn;
 
 	if (isMisere == 1)
 	{
@@ -139,9 +141,17 @@ int main(int argc, char const *argv[])
 		 printf("You are only viewing\n");
 	}
 
-	struct fd_set fdSetRead, fdSetWrite;
+	int addReadyForSend = 0;
+	if (myTurn == 1)
+	{
+		 printf("Your turn:\n");
+	}
 
-	//printGameState(game);
+	struct fd_set fdSetRead, fdSetWrite;
+	struct clientMsg cm;
+	
+	
+	printGameState(game);
 	while(game.win == 0){
 		// m = getMoveFromInput(sock);
 		// sprintf(buf, "%d$%d", m.heap,m.amount);
@@ -169,13 +179,25 @@ int main(int argc, char const *argv[])
 			// not only a viewer
 			FD_SET(STDIN, &fdSetRead);
 		}
-		
 		FD_SET(sock, &fdSetRead);
+
+		if (addReadyForSend == 1)
+		{
+			FD_SET(sock, &fdSetWrite);
+		}
 
 		int fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 
 		if(fdReady == 0){
 			continue;
+		}
+
+		if(FD_ISSET(sock , &fdSetWrite) == 1 && addReadyForSend == 1){
+			// ready to send
+			char cmb[MSG_SIZE];
+			createClientMsgBuff(cm, cmb);
+			sendAll(sock, cmb);
+			addReadyForSend = 0;
 		}
 
 		char readBuf[MSG_SIZE];
@@ -186,22 +208,43 @@ int main(int argc, char const *argv[])
 			receiveAll(STDIN, readBuf, &rSize);
 			printf("Read from STDIN:%s\n", readBuf);
 
-			struct clientMsg cm;
-			parseClientMsg(readBuf, &cm);
+			cm = getMoveFromInput(sock, readBuf);
 
-			if (cm.msg == 1)
+			if (cm.msg > -1 && playing == 1)
 			{
 				// this is message
+				addReadyForSend = 1;
+			}
 
+			if (cm.msg == 0 && playing == 1)
+			{
+				if (myTurn != 1)
+				{
+					// not my turn!
+					printf("Move rejected: this is not your turn\n");
+				}else{
+					addReadyForSend = 1;
+				}
 			}
 		}
 
 		if(FD_ISSET(sock , &fdSetRead) == 1){
 			receiveAll(sock, readBuf, &rSize);
 			printf("Read from sock rcv:%s\n", readBuf);
+			int oldMoveCount = game.moveCount;
+			parseGameData(readBuf, &game);
+
+			// change from viewer to playing
+			if (playing == 0 && game.playing == 1)
+			{
+				playing = 1;
+			}
+
+			if (oldMoveCount != game.moveCount)
+			{
+				printGameState(game);
+			}
 		}
-
-
 	}
 
 	printWinner(game);
@@ -255,19 +298,28 @@ int connectToServer(int sock, const char* address, char* port){
 	return sock;
 }
 
-struct clientMsg getMoveFromInput(int sock){
+struct clientMsg getMoveFromInput(int sock, char* cmd){
 	int heap, reduce;
 	char heapC;
-	char cmd[10];
+	char msg[MSG_SIZE];
+	int recep;
+	struct clientMsg m;
+	m.moveCount = game.moveCount;
 
-	printf("Your turn:\n");
-
-	fgets(cmd,10,stdin);
 	// Exit if user put Q
 	if (strcmp(cmd,"Q") == 0)
 	{
 		close(sock);
 		exit(0);
+	}
+
+	if (sscanf(cmd,"MSG %d %s", &recep, msg) == 2)
+	{
+		m.msg = 1;
+		m.recp = recep;
+		strcpy(m.msgTxt, msg);
+
+		return m;
 	}
 
 	sscanf(cmd,"%c %d", &heapC, &reduce);
@@ -279,7 +331,7 @@ struct clientMsg getMoveFromInput(int sock){
 		 exit(1);
 	}
 
-	struct clientMsg m;
+
 	m.heap = heap;
 	m.amount = reduce;
 

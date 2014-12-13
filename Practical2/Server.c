@@ -25,7 +25,7 @@ int MSG_SIZE=300;
 
 struct gameData{
 	int valid; 
-	int msg; // <sender Id> - this is a message, (-1) - this is not a msg
+	int msg; // <sender Id> - this is a message, (-1) - send to all - (0) this is not a msg
 	int isMyTurn; // 0 - no, 1 - yes
 	int win; // 0 - no one, <player id> - the player id who won
 	int numOfPlayers; // p - then number of players the server allows to play
