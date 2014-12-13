@@ -220,7 +220,6 @@ int main(int argc, char** argv){
 			}
 		}
 
-
 		// handling move by client
 		if(FD_ISSET(ClientsQueue[clientIndexTurn].fd , &fdSetRead)){
 			// Client with turn is ready to send data.
