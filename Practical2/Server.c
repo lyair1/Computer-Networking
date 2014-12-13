@@ -81,7 +81,22 @@ void PRINT_Debug(char* msg);
 void SendCantConnectToClient(int fd);
 
 void addClientToQueue(int newFd, int isPlayer);
-int delClientFromQueue(int fd){
+int delClientFromQueue(int fd);
+void handleMsg(struct clientMsg ,int index);
+
+// void updateClientsOnChange(int clientNum, int action);
+
+// *
+//  send messages to all clients with proper coded data
+//  clientNum - the client that was changed
+//  action - type of action that was made
+//  0 - deleted client
+//  1 - added client
+
+// void updateClientsOnChange(int clientNum, int action){
+
+// }
+
 
 #define DEBUG 1
 
@@ -197,9 +212,13 @@ int main(int argc, char** argv){
 					if(errorIndicator < 0){
 						close(ClientsQueue[i].fd);
 						delClientFromQueue(ClientsQueue[i].fd);
-						// TODO : tell all other clients
+						//updateClientsOnChange(ClientsQueue[i].clientNum, 0);
 					}
-					clientMove = parseClientMsg(buf);
+					else{
+						clientMove = parseClientMsg(buf);
+						handleMsg(clientMove, i);
+					}
+					
 					// TODO: send msg to relevant clients. in select?
 				}
 			}
@@ -529,6 +548,39 @@ int delClientFromQueue(int fd){
 	else{
 		conViewers--;
 		return 0;
+	}
+}
+
+
+/**
+	clientMove - struct containing msgTxt and reciver
+	index - ClientsQueue index of sender
+*/
+void handleMsg(struct clientMsg clientMove,int index){
+	struct gameData data;
+	int i;
+	char buf[MSG_SIZE];
+
+	data.valid = 1;
+	data.msg = i;
+	strcpy(data.msgTxt, clientMove.msgTxt);
+	createClientMsgBuff(data, buf)
+
+	if(recp == -1){
+		// send to all except the sender
+		for (i=0; i< conPlayers + conViewers ; i++){
+			if(i != index){
+				sendAll(ClientsQueue[i].fd, buf, MSG_SIZE);
+			}
+		}
+	}
+	else{
+		// send only to a specific client number
+		for (i=0; i< conPlayers + conViewers ; i++){
+			if(ClientsQueue[i].clientNum == clientMove.recp){
+				sendAll(ClientsQueue[i].fd, buf, MSG_SIZE);
+			}
+		}
 	}
 }
 
