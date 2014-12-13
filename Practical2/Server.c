@@ -21,6 +21,18 @@
 
 int MSG_SIZE=50;
 
+struct clientData{
+	int fd;			// fd that was returned from select
+	int clientNum;	// client number implemented bonus style
+	int isPlayer;
+}
+
+struct clientData ClientsQueue[10];
+int minFreeClientNum = 1;
+int clientIndexTurn = 0;
+int conPlayers = 0;
+int conViewers = 0;
+
 struct gameData{
 	int valid; // 0 - not valid, 1 - valid, -1 - can't connect - too many clients connected
 	int win; // 0 - no one, 1 - player win, 2 - player lost
@@ -38,7 +50,7 @@ struct gameData{
 struct clientMsg{
 	int heap;
 	int amount;
-	int msg; // 0 - this is a message, 1 - this is a move
+	int msg; // 1 - this is a message, 0 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
 	int moveCount; // amount of move that were made
 	char msgTxt[10];
@@ -63,6 +75,9 @@ struct gameData parseGameData(char buf[MSG_SIZE]);
 void PRINT_Debug(char* msg);
 void SendCantConnectToClient(int fd);
 
+void addClientToQueue(int newFd, int isPlayer);
+int delClientFromQueue(int fd){
+
 #define DEBUG 1
 
 void PRINT_Debug(char* msg){
@@ -73,7 +88,7 @@ void PRINT_Debug(char* msg){
 
 int main(int argc, char** argv){
 	int sockListen, errorIndicator;
-	int clientNum[9], maxClientNum, conPlayers, conViewers;
+	int clientNum[9][1], maxClientNum;
 	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
@@ -151,6 +166,7 @@ int main(int argc, char** argv){
 	while(1){
 		// Waiting for 
 		fdCurr = select(maxClientNum+1, fdSet, NULL, NULL, NULL);
+
 		if(fdCurr == sockListen){
 			// New Client is trying to connect
 
@@ -161,6 +177,14 @@ int main(int argc, char** argv){
 			if( (conViewers + conPlayers) == 9){
 				// too much connected clients. sending "can't connect" to client
 				SendCantConnectToClient(fdCurr);
+			}
+			else if(conPlayers == p){
+				// max amount of players. new client is a viewer
+				++maxClientNum;
+
+			}
+			else{
+				// new client is a player
 			}
 			FD_SET(fdCurr, fd_set);
 			continue;
@@ -234,6 +258,8 @@ void SendCantConnectToClient(int fd){
 
 	errorIndicator = sendAll(fd, buf, &MSG_SIZE);
 	checkForNegativeValue(errorIndicator, "send", sock);
+
+	close(fd);
 }
 
 void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove){
@@ -385,6 +411,68 @@ int sendAll(int s, char *buf, int *len) {
 		exit(1);
 	}
 }
+
+/**
+ newFd - new client's fd returned from select
+ isPlayer - 1 for player, 0 for viewer
+*/
+void addClientToQueue(int newFd, int isPlayer){
+	struct clientData newClient;
+
+	newClient.fd = newFd;
+	newClient.clientNum = minFreeClientNum;
+	newClient.isPlayer = isPlayer;
+
+	minFreeClientNum++;
+	
+	if(isPlayer){
+		conPlayers++;
+	}
+	else{
+		conViewers++;
+	}
+
+	ClientsQueue[conPlayers+conViewers] = newClient;
+}
+
+/** fd - fd of client that was disconnected
+	return value - 1 deleted client is a player, 0 for viewer
+*/
+int delClientFromQueue(int fd){
+	int i;
+	struct clientData delClient;
+
+	// find and copy deleted client
+	for(i=0; i< conViewers+Players; i++){
+		if(ClientsQueue[i].fd == fd){
+			delClient = ClientsQueue[i];
+			break;
+		}
+	}
+
+	// preserve global turn
+	if(i < clientIndexTurn){
+		clientIndexTurn--;
+	}
+
+	// move clients after deleted client to the left
+	for(; i< conViewers+Players - 1; i++){
+		ClientsQueue[i] = ClientsQueue[i+1];
+		}
+	}
+
+	// update globals
+	if(delClient.clientNum < minFreeClientNum){
+		minFreeClientNum = delClient.clientNum;
+	}
+	if(delClient.isPlayer){
+		conPlayers--;
+	}
+	else{
+		conViewers--;
+	}
+}
+
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
 	sprintf(buf, "%d$%d$%d$%d$%d$%s$",
