@@ -83,7 +83,7 @@ void SendCantConnectToClient(int fd);
 void addClientToQueue(int newFd, int isPlayer);
 int delClientFromQueue(int fd);
 void handleMsg(struct clientMsg ,int index);
-
+void sendProperDataAfterMove(struct gameData data);
 // void updateClientsOnChange(int clientNum, int action);
 
 // *
@@ -96,6 +96,12 @@ void handleMsg(struct clientMsg ,int index);
 // void updateClientsOnChange(int clientNum, int action){
 
 // }
+
+void sendProperDataAfterMove(struct gameData data){
+	if(IsBoardClear(data)){
+		// TODO: send win / lose msg and exit
+	}
+}
 
 
 #define DEBUG 1
@@ -218,8 +224,6 @@ int main(int argc, char** argv){
 						clientMove = parseClientMsg(buf);
 						handleMsg(clientMove, i);
 					}
-					
-					// TODO: send msg to relevant clients. in select?
 				}
 			}
 		}
@@ -233,9 +237,13 @@ int main(int argc, char** argv){
 			if(errorIndicator < 0){
 				close(ClientsQueue[i].fd);
 				delClientFromQueue(ClientsQueue[i].fd);
-				// TODO : tell all other clients
 			}
-			clientMove = parseClientMsg(buf);
+			else{
+				clientMove = parseClientMsg(buf);
+				CheckAndMakeClientMove(&game, clientMove);
+				sendProperDataAfterMove(game);
+			}
+
 			// TODO: make move and send msg to relevant clients. in select?
 		}
 
@@ -284,42 +292,10 @@ int main(int argc, char** argv){
 		/*printf("Received data: %s with indicator: %d\n",buf, errorIndicator);*/
 		checkForNegativeValue(errorIndicator, "recv", sock);
 
-		sscanf(buf, "%d$%d", &clientMove.heap, &clientMove.amount);
 
-		if(clientMove.heap<0 || clientMove.heap>3){
-			game.valid=0;
-		}
 		else{
 			CheckAndMakeClientMove(&game, clientMove);
 		}
-
-		if(IsBoardClear(game)){
-			if(game.isMisere){
-				// Server win
-				game.win=2;
-			}
-			else{
-				// Client win
-				game.win=1;
-			}
-
-		}
-
-		else{
-			RemoveOnePieceFromBiggestHeap(&game);
-			if(IsBoardClear(game)){
-				if(game.isMisere){
-					// Client win
-					game.win=1;
-				}
-				else{
-					// Server win
-					game.win=2;
-				}
-			}
-		}
-
-		sprintf(buf, "%d$%d$%d$%d$%d$%d$%d",game.valid,game.win, game.isMisere,game.heapA,game.heapB,game.heapC,game.heapD);
 	}
 
 }
@@ -340,6 +316,11 @@ void SendCantConnectToClient(int fd){
 }
 
 void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove){
+
+	if(clientMove.heap<0 || clientMove.heap>3){
+		game->valid=0;
+		return;
+	}
 
 	switch(clientMove.heap){
 		case(0):
@@ -384,6 +365,17 @@ void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove)
 
 		default:
 			game->valid=0;
+	}
+
+	if(IsBoardClear(game)){
+		if(game.isMisere){
+			// all other clients win
+			game.win=2;
+		}
+		else{
+			// Client win
+			game.win=1;
+		}
 	}
 }
 
