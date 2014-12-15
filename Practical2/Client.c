@@ -111,7 +111,9 @@ int main(int argc, char const *argv[])
 	/*char buf[MSG_SIZE];*/
 	/*struct clientMsg m;*/
 	// Get initial data 
+	printf("trying to get initial data\n");
 	game = receiveDataFromServer(sock);
+	printf("got initial data\n");
 	//got the initial data from the server
 	if (game.valid == 0)
 	{
@@ -152,7 +154,7 @@ int main(int argc, char const *argv[])
 	
 	
 	printGameState(game);
-	while(game.win == 0){
+	while(game.win == -1){
 		// m = getMoveFromInput(sock);
 		// sprintf(buf, "%d$%d", m.heap,m.amount);
 		// if(sendAll(sock, buf, &MSG_SIZE) == -1){
@@ -189,11 +191,13 @@ int main(int argc, char const *argv[])
 		int fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 
 		if(fdReady == 0){
+			printf("no fd ready\n");
 			continue;
 		}
 
 		if(FD_ISSET(sock , &fdSetWrite) == 1 && addReadyForSend == 1){
 			// ready to send
+			printf("ready to send\n");
 			char cmb[MSG_SIZE];
 			createClientMsgBuff(cm, cmb);
 			sendAll(sock, cmb);
@@ -274,14 +278,14 @@ int connectToServer(int sock, const char* address, char* port){
         	continue;
     	}
 
-    	/*printf("trying to connect\n");*/
+    	printf("trying to connect\n");
     	if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
       	  	//close(sock);
        	 	perror("connect");
         	continue;
     	}
 
-    	/*printf("Connected\n");*/
+    	printf("Connected\n");
 
     	break; // if we get here, we must have connected successfully
 	}
@@ -351,8 +355,9 @@ struct gameData receiveDataFromServer(int sock)
     	exit(2);
 	}
 
+	printf("received data from server\n");
 	parseGameData(buf, &game);
-
+	printf("parsed data from server\n");
 	/*printf("Data Received from server: %s\n",buf);*/
 
 	return game;
@@ -413,16 +418,21 @@ int sendAll(int s, char *buf) {
     int n;
 	
 	struct gameData gd;
-
+	printf("trying to receive\n");
 	while(total < *len && parseGameData(buf, &gd) < 14) {
+			printf("Receiveing data\n");
 			n = recv(s, buf+total, bytesleft, 0);
+			printf("received some:%s\n",buf);
 			checkForZeroValue(n,s);
-			if (n == -1) { break; }
+			if (n == -1) { 
+				printf("recv failed\n");
+				break; 
+			}
 			total += n;
 			bytesleft -= n;
 	  	}
 	*len = total; /* return number actually sent here */
-	  	
+	 printf("received all\n");
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }
 
@@ -463,7 +473,8 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	return sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+ 	printf("parseGameData trying to parse:%s\n", buf);
+	int x = sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -478,6 +489,9 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 	 &data->heapD,
 	 &data->moveCount,
 	 &data->msgTxt[0]);
+	printf("parseGameData parsed %d itmes\n", x);
+
+	return x;
 }
 
 void createGameDataBuff(struct gameData data, char* buf){

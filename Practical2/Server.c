@@ -160,7 +160,6 @@ int main(int argc, char** argv){
 	game.valid=1;
 	game.win = -1;
 	
-
 	/*printf("Set all arguments, start server\n");*/
 
 	// Set listner. accepting only in main loop
@@ -177,97 +176,136 @@ int main(int argc, char** argv){
 	checkForNegativeValue(errorIndicator, "bind", sockListen);
 	/*printf("Succesfully binded %d\n", sock);*/
 
-	errorIndicator=listen(sockListen, 5);
+	errorIndicator=listen(sockListen, 9);
 	checkForNegativeValue(errorIndicator, "listen", sockListen);
 	/*printf("Succesfully started listening: %d\n", sock);*/
 	
 	while(1){
 		// clear set and add listner
-		maxClientFd = 0;
+		maxClientFd = sockListen;
 		FD_ZERO(&fdSetRead);
 		FD_ZERO(&fdSetWrite);
 		FD_SET(sockListen, &fdSetRead);
+		printf("listening socket is:%d\n",sockListen);
 
 		// add all clients to fdSetRead
 		for(i=0 ; i< conViewers + conPlayers ; i++){
+			printf("clients to add\n");
 			FD_SET(ClientsQueue[i].fd, &fdSetRead);
 			FD_SET(ClientsQueue[i].fd, &fdSetWrite);
 			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
 		}
 
 		// TODO: need to add timeout
+		printf("Select...\n");
 		fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
+		printf("Exit select...\n");
 
-		if(fdReady == 0){
-			continue;
-		}
+		/* Service all the sockets with input pending. */
+      for (i = 0; i < FD_SETSIZE; ++i){
+      	if (FD_ISSET (i, &fdSetRead)){
+      		printf("sock %d is ready for read\n", i);
 
-		// handling messages first
-		for(i=0 ; i< conViewers + conPlayers ; i++){
-			if(FD_ISSET(ClientsQueue[i].fd , &fdSetRead)){
-				if((i != clientIndexTurn) && (ClientsQueue[i].fd != sockListen)){
-					// Client is ready to send data.
-					// it is not the client turn & it's not the listner
-					// hence, only message is legal
-					errorIndicator = receiveAll(ClientsQueue[i].fd, buf, &msg_SIZE);
-					if(errorIndicator < 0){
-						close(ClientsQueue[i].fd);
-						delClientFromQueue(ClientsQueue[i].fd);
-						//updateClientsOnChange(ClientsQueue[i].clientNum, 0);
-					}
-					else{
-						parseClientMsg(buf, &clientMove);
-						handleMsg(clientMove, i);
-					}
-				}
-			}
-		}
+      		if (sockListen == i)
+      		{
+      			 printf("Reading from sock listen\n");
+      			 int currFd = accept(sockListen, (struct sockaddr*)NULL, NULL );
 
-		// handling move by client
-		if(FD_ISSET(ClientsQueue[clientIndexTurn].fd , &fdSetRead)){
-			// Client with turn is ready to send data.
-			// TODO: what if he sends a message? 
-			errorIndicator = receiveAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
-			if(errorIndicator < 0){
-				close(ClientsQueue[i].fd);
-				delClientFromQueue(ClientsQueue[i].fd);
-			}
-			else{
-				parseClientMsg(buf, &clientMove);
-				CheckAndMakeClientMove(&game, clientMove);
-				if(sendProperDataAfterMove(game)){
-					//game over
-					exit(1);
-				}
-			}
-		}
-
-		if(FD_ISSET(sockListen , &fdSetRead)){
-			// New Client is trying to connect
-
-			/*printf("Trying to accept\n");*/
-			fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
-			checkForNegativeValue(fdCurr, "accept", fdCurr);
-			if(fdCurr < 0){
-				// TODO: nothing to be done?
-			}
-			else{
-				if( (conViewers + conPlayers) == 9){
+      			 checkForNegativeValue(fdCurr, "accept", fdCurr);
+				 if(fdCurr >= 0){
+				 	printf("Got a valid FD after accept, fd:%d\n",fdCurr);
+				 	if( (conViewers + conPlayers) == 9){
 					// too much connected clients. sending "can't connect" to client
 					SendCantConnectToClient(fdCurr);
-				}
-				else if(conPlayers == p){
-					// max amount of players. new client is a viewer
-					addClientToQueue(fdCurr, 0);
-					// TODO: tell all clients
-				}
-				else{
-					// new client is a player
-					addClientToQueue(fdCurr, 1);	
-					// TODO: tell all clients
-				}
+					}
+					else if(conPlayers == p){
+						// max amount of players. new client is a viewer
+						addClientToQueue(fdCurr, 0);
+						// TODO: tell all clients
+					}
+					else{
+						// new client is a player
+						printf("new client is a player\n");
+						addClientToQueue(fdCurr, 1);
+						char currBuf[MSG_SIZE];
+						createGameDataBuff(game, currBuf);
+						printf("trying to send buf:%s\n",currBuf);
+						assert(sendAll(fdCurr, currBuf, &msg_SIZE) == -1);
+						printf("sent all\n");	
+						sleep(2);
+						exit(0);
+						// TODO: tell all clients
+					}
+				 }
 			}
-		}
+
+      		
+      	}
+
+      	if (FD_ISSET (i, &fdSetWrite)){
+      		printf("sock %d is write for read\n", i);
+      	}
+      }
+        
+
+
+
+		// if (fdReady < 0)
+		// {
+		// 	printf("fdready < 0\n");
+		// }
+		// if(fdReady == 0){
+		// 	printf("fdready == 0\n");
+		// 	exit(0);
+		// 	continue;
+		// }
+
+		// // handling messages first
+		// for(i=0 ; i< conViewers + conPlayers ; i++){
+		// 	printf("in loop\n");
+		// 	if(FD_ISSET(ClientsQueue[i].fd , &fdSetRead)){
+		// 		printf("ready for read msg\n");
+		// 		exit(0);
+		// 		if((i != clientIndexTurn) && (ClientsQueue[i].fd != sockListen)){
+		// 			// Client is ready to send data.
+		// 			// it is not the client turn & it's not the listner
+		// 			// hence, only message is legal
+		// 			errorIndicator = receiveAll(ClientsQueue[i].fd, buf, &msg_SIZE);
+		// 			if(errorIndicator < 0){
+		// 				close(ClientsQueue[i].fd);
+		// 				delClientFromQueue(ClientsQueue[i].fd);
+		// 				//updateClientsOnChange(ClientsQueue[i].clientNum, 0);
+		// 			}
+		// 			else{
+		// 				parseClientMsg(buf, &clientMove);
+		// 				handleMsg(clientMove, i);
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		// // handling move by client
+		// if(FD_ISSET(ClientsQueue[clientIndexTurn].fd , &fdSetRead)){
+		// 	printf("ready for read move \n");
+		// 	exit(0);
+		// 	// Client with turn is ready to send data.
+		// 	// TODO: what if he sends a message? 
+		// 	errorIndicator = receiveAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
+		// 	if(errorIndicator < 0){
+		// 		close(ClientsQueue[i].fd);
+		// 		delClientFromQueue(ClientsQueue[i].fd);
+		// 	}
+		// 	else{
+		// 		parseClientMsg(buf, &clientMove);
+		// 		CheckAndMakeClientMove(&game, clientMove);
+		// 		if(sendProperDataAfterMove(game)){
+		// 			//game over
+		// 			exit(1);
+		// 		}
+		// 	}
+		// }
+
+
 	}
 }
 
@@ -415,6 +453,7 @@ int sendAll(int s, char *buf, int *len) {
    	int n;
 	
 	while(total < *len) {
+			printf("sending data...\n");
 			n = send(s, buf+total, bytesleft, 0);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
