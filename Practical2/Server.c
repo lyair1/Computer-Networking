@@ -159,6 +159,7 @@ int main(int argc, char** argv){
 	game.heapD = M;
 	game.valid=1;
 	game.win = -1;
+	game.numOfPlayers = p;
 	
 
 	/*printf("Set all arguments, start server\n");*/
@@ -259,16 +260,34 @@ int main(int argc, char** argv){
 				else if(conPlayers == p){
 					// max amount of players. new client is a viewer
 					addClientToQueue(fdCurr, 0);
-					// TODO: tell all clients
+					sendClientConnected(fdCurr, &game);
 				}
 				else{
 					// new client is a player
 					addClientToQueue(fdCurr, 1);	
-					// TODO: tell all clients
+					sendClientConnected(fdCurr, &game);
 				}
 			}
 		}
 	}
+}
+
+void sendClientConnected(int fd, struct gameData *data){
+	struct clientData thisClientData;
+	char buf[MSG_SIZE];
+
+	// last one added	
+	thisClientData = ClientsQueue[conViewers+conPlayers]; 
+
+	game->valid = 1;
+	game->msg = 0;
+	game->myPlayerId = thisClientData.clientNum;
+	game->playing = thisClientData.isPlayer;
+
+	parseGameData(buf, data);
+	errorIndicator = sendAll(fd, buf, &msg_SIZE);
+	checkForNegativeValue(errorIndicator, "send", fd);
+	
 }
 
 void SendCantConnectToClient(int fd){
