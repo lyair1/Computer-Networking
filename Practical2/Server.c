@@ -159,6 +159,7 @@ int main(int argc, char** argv){
 	game.heapD = M;
 	game.valid=1;
 	game.win = -1;
+	game.numOfPlayers = p;
 	
 	/*printf("Set all arguments, start server\n");*/
 
@@ -304,9 +305,25 @@ int main(int argc, char** argv){
 		// 		}
 		// 	}
 		// }
-
-
 	}
+}
+
+void sendClientConnected(int fd, struct gameData *data){
+	struct clientData thisClientData;
+	char buf[MSG_SIZE];
+
+	// last one added	
+	thisClientData = ClientsQueue[conViewers+conPlayers]; 
+
+	data->valid = 1;
+	data->msg = 0;
+	data->myPlayerId = thisClientData.clientNum;
+	data->playing = thisClientData.isPlayer;
+
+	parseGameData(buf, data);
+	int errorIndicator = sendAll(fd, buf, &msg_SIZE);
+	checkForNegativeValue(errorIndicator, "send", fd);
+	
 }
 
 void SendCantConnectToClient(int fd){
