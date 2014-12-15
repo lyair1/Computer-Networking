@@ -107,7 +107,7 @@ int main(int argc, char const *argv[])
 
 	// Connect to server
 	sock = connectToServer(sock, address, port);
-	
+	printf("socket number after connectToServer: %d\n", sock);
 	/*char buf[MSG_SIZE];*/
 	/*struct clientMsg m;*/
 	// Get initial data 
@@ -422,7 +422,7 @@ int sendAll(int s, char *buf) {
 	while(total < *len && parseGameData(buf, &gd) < 14) {
 			printf("Receiveing data\n");
 			n = recv(s, buf+total, bytesleft, 0);
-			printf("received some:%s\n",buf);
+			printf("received some:%s, n=%d\n",buf,n);
 			checkForZeroValue(n,s);
 			if (n == -1) { 
 				printf("recv failed\n");

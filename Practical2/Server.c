@@ -160,6 +160,8 @@ int main(int argc, char** argv){
 	game.valid=1;
 	game.win = -1;
 	game.numOfPlayers = p;
+	game.msg = 0;
+
 	
 	/*printf("Set all arguments, start server\n");*/
 
@@ -210,7 +212,7 @@ int main(int argc, char** argv){
       		if (sockListen == i)
       		{
       			 printf("Reading from sock listen\n");
-      			 int currFd = accept(sockListen, (struct sockaddr*)NULL, NULL );
+      			 int fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
 
       			 checkForNegativeValue(fdCurr, "accept", fdCurr);
 				 if(fdCurr >= 0){
@@ -229,9 +231,20 @@ int main(int argc, char** argv){
 						printf("new client is a player\n");
 						addClientToQueue(fdCurr, 1);
 						char currBuf[MSG_SIZE];
-						createGameDataBuff(game, currBuf);
-						printf("trying to send buf:%s\n",currBuf);
-						assert(sendAll(fdCurr, currBuf, &msg_SIZE) == -1);
+						struct clientData thisClientData = ClientsQueue[conViewers+conPlayers]; 
+
+						game.valid = 1;
+						game.msg = 0;
+						game.myPlayerId = thisClientData.clientNum;
+						game.playing = thisClientData.isPlayer;
+						game.moveCount = 0;
+						game.isMyTurn = 0;
+						strcpy(game.msgTxt, "noMSG");
+						createGameDataBuff(game, buf);
+
+						//parseGameData(buf, &game);
+						printf("trying to send buf:%s\n",buf);
+						assert(sendAll(fdCurr, buf, &msg_SIZE) == -1);
 						printf("sent all\n");	
 						sleep(2);
 						exit(0);
@@ -472,6 +485,7 @@ int sendAll(int s, char *buf, int *len) {
 	while(total < *len) {
 			printf("sending data...\n");
 			n = send(s, buf+total, bytesleft, 0);
+			printf("sent %d bytes\n", n);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
