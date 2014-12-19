@@ -261,7 +261,7 @@ int main(int argc, char** argv){
 	 			}
 	      	}
 
-	      	if (FD_ISSET (i, &fdSetWrite)){
+	      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetWrite)){
 	      		printf("sock %d is ready for write\n", ClientsQueue[i].fd);
 	      		errorIndicator = sendToClient(i);
 	      		if(errorIndicator < 0){
