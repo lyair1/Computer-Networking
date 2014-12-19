@@ -124,7 +124,7 @@ void PRINT_Debug(char* msg){
 int main(int argc, char** argv){
 	int sockListen, errorIndicator;
 	int maxClientFd;
-	int i;
+	int i, fdready;
 	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
@@ -197,6 +197,8 @@ int main(int argc, char** argv){
 	
 	while(1){
 		// clear set and add listner
+		sleep(4);
+		
 		maxClientFd = sockListen;
 		FD_ZERO(&fdSetRead);
 		FD_ZERO(&fdSetWrite);
@@ -205,7 +207,7 @@ int main(int argc, char** argv){
 
 		// add all clients to fdSetRead
 		for(i=0 ; i< conViewers + conPlayers ; i++){
-			printf("clients to add\n");
+			printf("clients to add. players:%d, viewers:%d\n",conPlayers,conViewers);
 			FD_SET(ClientsQueue[i].fd, &fdSetRead);
 			if(strlen(ClientsQueue[i].writeBuf) > 0){
 				FD_SET(ClientsQueue[i].fd, &fdSetWrite);
@@ -215,10 +217,10 @@ int main(int argc, char** argv){
 
 		// TODO: need to add timeout
 		printf("Select...\n");
-		select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
-		printf("Exit select...\n");
+		fdready = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
+		printf("Exit select...fdReady = %d\n",fdready);
 
-
+		printf("%s...\n",strerror(errno));
 		if (FD_ISSET (sockListen, &fdSetRead))
       		{
       			 printf("Reading from sock listen\n");
@@ -245,26 +247,28 @@ int main(int argc, char** argv){
 			}
 
 		/* Service all the sockets with input pending. */
-      for (i = 0; i < conPlayers+conViewers; ++i){
-      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
-      		printf("sock %d is ready for read\n", ClientsQueue[i].fd);
-      		errorIndicator = receiveFromClient(i);
-      		if(errorIndicator < 0){
- 				close(ClientsQueue[i].fd);
-				delClientFromQueue(ClientsQueue[i].fd);
- 			}
- 			else if(errorIndicator == 1){
- 				handleReadBuf(i);
- 			}
-      	}
+     	for (i = 0; i < conPlayers+conViewers; ++i){
+     		printf("i=%d, fd=%d\n", i, ClientsQueue[i].fd);
+	      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
+	      		printf("sock %d is ready for read\n", ClientsQueue[i].fd);
+	      		errorIndicator = receiveFromClient(i);
+	      		if(errorIndicator < 0){
+	 				close(ClientsQueue[i].fd);
+					delClientFromQueue(ClientsQueue[i].fd);
+	 			}
+	 			else if(errorIndicator == 1){
+	 				handleReadBuf(i);
+	 			}
+	      	}
 
-      	if (FD_ISSET (i, &fdSetWrite)){
-      		errorIndicator = sendToClient(i);
-      		if(errorIndicator < 0){
-				close(ClientsQueue[i].fd);
-				delClientFromQueue(ClientsQueue[i].fd);
-      		}
-      	}
+	      	if (FD_ISSET (i, &fdSetWrite)){
+	      		printf("sock %d is ready for write\n", ClientsQueue[i].fd);
+	      		errorIndicator = sendToClient(i);
+	      		if(errorIndicator < 0){
+					close(ClientsQueue[i].fd);
+					delClientFromQueue(ClientsQueue[i].fd);
+	      		}
+	      	}
       }
         
 
@@ -594,7 +598,7 @@ int CheckAndMakeClientMove(struct clientMsg clientMove){
 
 void checkForNegativeValue(int num, char* func, int sock){
 	if(num<0){
-		printf( "Error: %s\n", strerror(errno) );
+		printf( "Error: %s. func:%s", strerror(errno),func );
 		close(sock);
 	}
 }
