@@ -72,7 +72,7 @@ int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
 int MaxNum(int a, int b, int c, int d);
-void CheckAndMakeClientMove(struct clientMsg clientMove);
+int CheckAndMakeClientMove(struct clientMsg clientMove);
 
 // common
 int sendAll(int s, char *buf, int *len);
@@ -87,15 +87,16 @@ int parseGameData(char buf[MSG_SIZE], struct gameData* data);
 void PRINT_Debug(char* msg);
 void SendCantConnectToClient(int fd);
 void sendInvalidMoveToPlayer(int index);
-void updateEveryoneOnMove(index);
+void updateEveryoneOnMove(int index);
 void notifyOnTurn();
 
 void addClientToQueue(int newFd, int isPlayer);
 int delClientFromQueue(int fd);
 void handleMsg(struct clientMsg ,int index);
+void handleIncomingMsg(struct clientMsg data,int index);
 int sendProperDataAfterMove(struct gameData data);
 void handleReadBuf(int index);
-void receiveFromClient(int index);
+int receiveFromClient(int index);
 int sendToClient(int index);
 
 // void updateClientsOnChange(int clientNum, int action);
@@ -121,17 +122,17 @@ void PRINT_Debug(char* msg){
 
 int main(int argc, char** argv){
 	int sockListen, errorIndicator;
-	int fdCurr, fdReady, maxClientFd;
+	int maxClientFd;
 	int i;
 	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
 	/*struct socklen_t *addrlen;*/
-	char buf[MSG_SIZE];
+	/*char buf[MSG_SIZE];*/
 	fd_set fdSetRead, fdSetWrite;
 
 	int M, port, p;
-	struct clientMsg clientMove;
+	/*struct clientMsg clientMove;*/
 
 	/*Region input Check*/
 
@@ -205,7 +206,7 @@ int main(int argc, char** argv){
 		for(i=0 ; i< conViewers + conPlayers ; i++){
 			printf("clients to add\n");
 			FD_SET(ClientsQueue[i].fd, &fdSetRead);
-			if(ClientsQueue[i].needToWrite){
+			if(strlen(ClientsQueue[i].writeBuf) > 0){
 				FD_SET(ClientsQueue[i].fd, &fdSetWrite);
 			}
 			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
@@ -213,7 +214,7 @@ int main(int argc, char** argv){
 
 		// TODO: need to add timeout
 		printf("Select...\n");
-		fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
+		select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 		printf("Exit select...\n");
 
 
@@ -245,14 +246,14 @@ int main(int argc, char** argv){
 		/* Service all the sockets with input pending. */
       for (i = 0; i < conPlayers+conViewers; ++i){
       	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
-      		printf("sock %d is ready for read\n", fd);
-      		errorIndicator = receiveFromClient(i, &msg_SIZE);
+      		printf("sock %d is ready for read\n", ClientsQueue[i].fd);
+      		errorIndicator = receiveFromClient(i);
       		if(errorIndicator < 0){
  				close(ClientsQueue[i].fd);
 				delClientFromQueue(ClientsQueue[i].fd);
 				// TODO: if it is the turn of the disconnected client, need to update the client which it is his turn now (like israeli)
  			}
- 			else if(errorIndicator=1){
+ 			else if(errorIndicator == 1){
  				handleReadBuf(i);
  			}
       	}
@@ -330,7 +331,7 @@ int main(int argc, char** argv){
 int sendToClient(int index){
 	if(strlen(ClientsQueue[index].writeBuf) ==0){
 		//nothing to send
-		return;
+		return 0;
 	}
 
    	int n;
@@ -344,9 +345,7 @@ int sendToClient(int index){
 	}
 	// writing succeeded. need to move move buffer head
 	strcpy(ClientsQueue[index].writeBuf, ClientsQueue[index].writeBuf+n);
-}
-
-
+	return 1;
 }
 
 /***
@@ -380,8 +379,7 @@ void handleReadBuf(int index){
 }
 
 void notifyOnTurn(){
-	int i;
-	char[MSG_SIZE] buf;
+	char buf[MSG_SIZE];
 	struct gameData newGame;
 
 	newGame.isMyTurn =1;
@@ -394,7 +392,7 @@ void notifyOnTurn(){
 
 void updateEveryoneOnMove(int index){
 	int i;
-	char[MSG_SIZE] buf;
+	char buf[MSG_SIZE];
 
 	game.playing = 2;
 	game.myPlayerId = ClientsQueue[index].clientNum;
@@ -405,9 +403,9 @@ void updateEveryoneOnMove(int index){
 }
 void sendInvalidMoveToPlayer(int index){
 	char buf[MSG_SIZE];
-	struct gameData;
 
-	game.vaild = 0;
+	game.valid = 0;
+
 	strcpy(game.msgTxt, "");
 
 	createGameDataBuff(game, buf);
@@ -415,26 +413,28 @@ void sendInvalidMoveToPlayer(int index){
 	// restore value
 	game.valid =1;
 
-	concat(ClientsQueue[i].writeBuf, buf);
+	strcat(ClientsQueue[index].writeBuf, buf);
 }
 /**
 	handles msg written by client clientQueue[index] 
 */
 void handleIncomingMsg(struct clientMsg data,int index){
 	int i;
-	char[MSG_SIZE] buf;
+	char buf[MSG_SIZE];
+	struct gameData newGame;
 
-	data.valid =1;
-	data.msg = ClientsQueue[index].clientNum;
+	newGame.valid =1;
+	newGame.msg = ClientsQueue[index].clientNum;
+	strcpy(newGame.msgTxt, data.msgTxt);
 
-	createClientMsgBuff(data, buf);
+	createGameDataBuff(newGame, buf);
 
 	if(data.recp == 0){
 		// send to all
 		for(i=0;i<conViewers+conPlayers; i++){
 			if(i != index){
 				//we don't want to send the msg to the sender
-				concat(ClientsQueue[i].writeBuf, data);
+				strcat(ClientsQueue[i].writeBuf, buf);
 			}
 		}
 	}
@@ -442,7 +442,7 @@ void handleIncomingMsg(struct clientMsg data,int index){
 		//sent to specific client. we will search for him
 		for(i=0;i<conViewers+conPlayers; i++)
 			if(ClientsQueue[i].clientNum == data.recp){
-				concat(ClientsQueue[i].writeBuf, data);
+				strcat(ClientsQueue[i].writeBuf, buf);
 			}
 	}
 }
@@ -455,7 +455,7 @@ void handleIncomingMsg(struct clientMsg data,int index){
 	-1 for disconnected client
 */
 int receiveFromClient(int index){
-	int total = 0; /* how many bytes we've received */
+	// int total = 0;  how many bytes we've received 
  	// size_t bytesleft = *len;  how many we have left to receive 
     int n;
     char buf[MSG_SIZE], temp[MSG_SIZE];
@@ -467,12 +467,10 @@ int receiveFromClient(int index){
 		return -1;
 	}
 	if(sscanf(buf,"(%s)",temp) ==1){
-		printf("index:%d, num:%d, socket:%d, has full msg in his buffer\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd)
+		printf("index:%d, num:%d, socket:%d, has full msg in his buffer\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd);
 		return 1;
 	}
-	else{
-		return 0;
-	}
+	return 0;
 }
 
 void sendClientConnected(int fd, struct gameData *data){
@@ -566,7 +564,7 @@ int CheckAndMakeClientMove(struct clientMsg clientMove){
 	}
 
 	if(IsBoardClear(game)){
-		if(game->isMisere){
+		if(game.isMisere){
 			// all other clients win
 			game.win=2;
 			return 2;
