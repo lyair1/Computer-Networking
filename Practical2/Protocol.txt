@@ -41,6 +41,8 @@ Server Response to client msg:
 
 			'gameData' obj with all of the data of the new turn game (valid == 0 if the move was invalid: e.g. reduce 10 from stack of 2)
 
+			if the move is valid, server sends the 'gameData' obj to all clients. myPlayerId == the id of the last client who made a move.
+
 
 		msg == 1:
 

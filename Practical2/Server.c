@@ -21,10 +21,9 @@
 //Working with errno to report errors
 #include <errno.h>
 
-
 #define MSG_SIZE 300
-
 int msg_SIZE = 300;
+#define CLIENT_MSG_SIZE 20
 
 struct gameData{
 	int valid; 
@@ -73,7 +72,7 @@ int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
 int MaxNum(int a, int b, int c, int d);
-void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove);
+void CheckAndMakeClientMove(struct clientMsg clientMove);
 
 // common
 int sendAll(int s, char *buf, int *len);
@@ -87,6 +86,9 @@ int parseGameData(char buf[MSG_SIZE], struct gameData* data);
 
 void PRINT_Debug(char* msg);
 void SendCantConnectToClient(int fd);
+void sendInvalidMoveToPlayer(int index);
+void updateEveryoneOnMove(index);
+void notifyOnTurn();
 
 void addClientToQueue(int newFd, int isPlayer);
 int delClientFromQueue(int fd);
@@ -94,6 +96,8 @@ void handleMsg(struct clientMsg ,int index);
 int sendProperDataAfterMove(struct gameData data);
 void handleReadBuf(int index);
 void receiveFromClient(int index);
+int sendToClient(int index);
+
 // void updateClientsOnChange(int clientNum, int action);
 
 // *
@@ -246,15 +250,20 @@ int main(int argc, char** argv){
       		if(errorIndicator < 0){
  				close(ClientsQueue[i].fd);
 				delClientFromQueue(ClientsQueue[i].fd);
+				// TODO: if it is the turn of the disconnected client, need to update the client which it is his turn now (like israeli)
  			}
  			else if(errorIndicator=1){
  				handleReadBuf(i);
  			}
-      		
       	}
 
       	if (FD_ISSET (i, &fdSetWrite)){
-      		printf("sock %d is write for read\n", i);
+      		errorIndicator = sendToClient(i);
+      		if(errorIndicator < 0){
+				close(ClientsQueue[i].fd);
+				delClientFromQueue(ClientsQueue[i].fd);
+				// TODO: if it is the turn of the disconnected client, need to update the client which it is his turn now (like israeli)
+      		}
       	}
       }
         
@@ -318,18 +327,125 @@ int main(int argc, char** argv){
 	}
 }
 
-/***
-	action for clientQueue[index]
-*/
-int handleReadBuf(int index){
-	struct clientMsg data;
+int sendToClient(int index){
+	if(strlen(ClientsQueue[index].writeBuf) ==0){
+		//nothing to send
+		return;
+	}
 
-	parseClientMsg(ClientsQueue[index].readBuf, &data);
+   	int n;
 	
-
+	printf("sending data...\n");
+	n = send(ClientsQueue[index].fd, ClientsQueue[index].writeBuf, strlen(ClientsQueue[index].writeBuf), 0);
+	printf("sent %d bytes to index: %d\n", n, index);
+	if(n <= 0){
+		//client disconected
+		return -1;
+	}
+	// writing succeeded. need to move move buffer head
+	strcpy(ClientsQueue[index].writeBuf, ClientsQueue[index].writeBuf+n);
 }
 
 
+}
+
+/***
+	action for clientQueue[index]
+*/
+void handleReadBuf(int index){
+	struct clientMsg data;
+	int retVal;
+	parseClientMsg(ClientsQueue[index].readBuf, &data);
+
+	if(data.msg){
+		handleIncomingMsg(data, index);
+	}
+	else{
+		// client sent a move
+		retVal = CheckAndMakeClientMove(data);
+		clientIndexTurn = (clientIndexTurn+1) % (conPlayers); // keep the turn moving only between connected players
+		if(retVal ==-1){
+			sendInvalidMoveToPlayer(index);
+		}
+		else{
+			updateEveryoneOnMove(index);
+			if(retVal==0) {
+				notifyOnTurn();
+			}
+		}
+	}
+
+	// deleting read data from readBuf
+	strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + CLIENT_MSG_SIZE);
+}
+
+void notifyOnTurn(){
+	int i;
+	char[MSG_SIZE] buf;
+	struct gameData newGame;
+
+	newGame.isMyTurn =1;
+	newGame.valid=1;
+	newGame.playing=1;
+
+	createGameDataBuff(newGame, buf);
+	strcat(ClientsQueue[clientIndexTurn].writeBuf, buf);
+}
+
+void updateEveryoneOnMove(int index){
+	int i;
+	char[MSG_SIZE] buf;
+
+	game.playing = 2;
+	game.myPlayerId = ClientsQueue[index].clientNum;
+	createGameDataBuff(game, buf);
+	for(i=0; i<conPlayers+conViewers; i++){
+		strcat(ClientsQueue[i].writeBuf, buf);
+	}
+}
+void sendInvalidMoveToPlayer(int index){
+	char buf[MSG_SIZE];
+	struct gameData;
+
+	game.vaild = 0;
+	strcpy(game.msgTxt, "");
+
+	createGameDataBuff(game, buf);
+
+	// restore value
+	game.valid =1;
+
+	concat(ClientsQueue[i].writeBuf, buf);
+}
+/**
+	handles msg written by client clientQueue[index] 
+*/
+void handleIncomingMsg(struct clientMsg data,int index){
+	int i;
+	char[MSG_SIZE] buf;
+
+	data.valid =1;
+	data.msg = ClientsQueue[index].clientNum;
+
+	createClientMsgBuff(data, buf);
+
+	if(data.recp == 0){
+		// send to all
+		for(i=0;i<conViewers+conPlayers; i++){
+			if(i != index){
+				//we don't want to send the msg to the sender
+				concat(ClientsQueue[i].writeBuf, data);
+			}
+		}
+	}
+	else if(index >0){
+		//sent to specific client. we will search for him
+		for(i=0;i<conViewers+conPlayers; i++)
+			if(ClientsQueue[i].clientNum == data.recp){
+				concat(ClientsQueue[i].writeBuf, data);
+			}
+	}
+}
 
 /**
 	handles receive from client.
@@ -348,7 +464,6 @@ int receiveFromClient(int index){
 	n = recv(ClientsQueue[index].fd, buf +strlen(buf), strlen(buf), 0);
 	if(n <= 0){
 		//client disconected
-		delClientFromQueue(ClientsQueue[index].fd);
 		return -1;
 	}
 	if(sscanf(buf,"(%s)",temp) ==1){
@@ -393,68 +508,76 @@ void SendCantConnectToClient(int fd){
 	close(fd);
 }
 
-void CheckAndMakeClientMove(struct gameData * game, struct clientMsg clientMove){
+/*
+	returns:	-1 invalid move
+				2 valid move, client lost
+				1 valid move, client won,
+				0 valid move, nobody won
+**/
+int CheckAndMakeClientMove(struct clientMsg clientMove){
 
 	if(clientMove.heap<0 || clientMove.heap>3){
-		game->valid=0;
-		return;
+		return -1;
 	}
 
 	switch(clientMove.heap){
 		case(0):
-			if(game->heapA < clientMove.amount){
-				game->valid=0;
+			if(game.heapA < clientMove.amount){
+				return -1;
 			}
 			else{
-				game->valid=1;
-				game->heapA-=clientMove.amount;
+				game.valid=1;
+				game.heapA-=clientMove.amount;
 			}
 			break;
 
 		case(1):
-			if(game->heapB < clientMove.amount){
-				game->valid=0;
+			if(game.heapB < clientMove.amount){
+				return -1;
 			}
 			else{
-				game->valid=1;
-				game->heapB-=clientMove.amount;
+				game.valid=1;
+				game.heapB-=clientMove.amount;
 			}
 			break;
 
 		case(2):
-			if(game->heapC < clientMove.amount){
-				game->valid=0;
+			if(game.heapC < clientMove.amount){
+				return -1;
 			}
 			else{
-				game->valid=1;
-				game->heapC-=clientMove.amount;
+				game.valid=1;
+				game.heapC-=clientMove.amount;
 			}
 			break;
 
 		case(3):
-			if(game->heapD < clientMove.amount){
-				game->valid=0;
+			if(game.heapD < clientMove.amount){
+				return -1;
 			}
 			else{
-				game->valid=1;
-				game->heapD-=clientMove.amount;
+				game.valid=1;
+				game.heapD-=clientMove.amount;
 			}
 			break;
 
 		default:
-			game->valid=0;
+				return -1;
 	}
 
-	if(IsBoardClear(*game)){
+	if(IsBoardClear(game)){
 		if(game->isMisere){
 			// all other clients win
-			game->win=2;
+			game.win=2;
+			return 2;
 		}
 		else{
 			// Client win
-			game->win=1;
+			game.win=1;
+			return 1;
 		}
 	}
+	return 0;
 }
 
 void checkForNegativeValue(int num, char* func, int sock){
@@ -466,28 +589,6 @@ void checkForNegativeValue(int num, char* func, int sock){
 
 int myBind(int sock, const struct sockaddr_in *myaddr, int size){
 	return bind(sock, (struct sockaddr*)myaddr, sizeof(struct sockaddr_in));
-}
-
-void RemoveOnePieceFromBiggestHeap(struct gameData* game){
-	int maxHeap;
-	maxHeap = MaxNum(game->heapA, game->heapB,game->heapC ,game->heapD);
-
-	if(maxHeap == game->heapD){
-		game->heapD-=1;
-		return;
-	}
-	if(maxHeap == game->heapC){
-		game->heapC-=1;
-		return;
-	}
-	if(maxHeap == game->heapB){
-		game->heapB-=1;
-		return;
-	}
-	if(maxHeap == game->heapA){
-		game->heapA-=1;
-		return;
-	}
 }
 
 int MaxNum(int a, int b, int c, int d){
@@ -616,6 +717,7 @@ void addClientToQueue(int newFd, int isPlayer){
 int delClientFromQueue(int fd){
 	int i;
 	struct clientData delClient;
+
 
 	/* find and copy deleted client*/
 	for(i=0; i< conViewers+conPlayers; i++){
