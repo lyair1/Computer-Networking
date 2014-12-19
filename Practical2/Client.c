@@ -38,7 +38,7 @@ struct gameData{
 	int heapB;
 	int heapC;
 	int heapD;
-	int moveCount; /* amount of move that were made*/
+	int moveCount; /* amount of moves that were made*/
 	char msgTxt[100];
 };
 

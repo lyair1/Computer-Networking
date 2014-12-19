@@ -31,7 +31,7 @@ struct gameData{
 	int msg; // <sender Id> - this is a message, (-1) - send to all - (0) this is not a msg
 	int isMyTurn; // 0 - no, 1 - yes
 	int win; // 0 - no one, <player id> - the player id who won
-	int numOfPlayers; // p - then number of players the server allows to play
+	int numOfPlayers; // p - the number of players the server allows to play
 	int myPlayerId; // player id (0 - p-1), if i dont play: -1
 	int playing; // 0 - viewing, 1 - playing
 	int isMisere;
@@ -58,7 +58,7 @@ struct clientData{
 	int isPlayer;
 	char readBuf[MSG_SIZE];		// contains data read from client
 	char writeBuf[MSG_SIZE]; 	// contains data to write to client
-	int needToWrite; // indicating whether writeBuf is contains data
+	//int amountToWrite; // indicating amount of data contains by writeBuf 
 };
 
 struct clientData ClientsQueue[10];	// queue for connected clients
@@ -66,7 +66,9 @@ int minFreeClientNum = 1;			// lowest available client number
 int clientIndexTurn = 0;			// current turn of client (index according to queue)
 int conPlayers = 0;					// amount of connected players
 int conViewers = 0;					// amount of connected viewers
+struct gameData game;				// global game struct
 
+// game utils
 int myBind(int sock, const struct sockaddr_in *myaddr, int size);
 int IsBoardClear(struct gameData game);
 void RemoveOnePieceFromBiggestHeap(struct gameData * game);
@@ -90,6 +92,8 @@ void addClientToQueue(int newFd, int isPlayer);
 int delClientFromQueue(int fd);
 void handleMsg(struct clientMsg ,int index);
 int sendProperDataAfterMove(struct gameData data);
+void handleReadBuf(int index);
+void receiveFromClient(int index);
 // void updateClientsOnChange(int clientNum, int action);
 
 // *
@@ -123,7 +127,6 @@ int main(int argc, char** argv){
 	fd_set fdSetRead, fdSetWrite;
 
 	int M, port, p;
-	struct gameData game;
 	struct clientMsg clientMove;
 
 	/*Region input Check*/
@@ -209,17 +212,13 @@ int main(int argc, char** argv){
 		fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 		printf("Exit select...\n");
 
-		/* Service all the sockets with input pending. */
-      for (i = 0; i < conPlayers+conViewers; ++i){
-      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
-      		printf("sock %d is ready for read\n", fd);
 
-      		if (sockListen == i)
+		if (FD_ISSET (sockListen, &fdSetRead))
       		{
       			 printf("Reading from sock listen\n");
       			 int fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
-
       			 checkForNegativeValue(fdCurr, "accept", fdCurr);
+
 				 if(fdCurr >= 0){
 				 	printf("Got a valid FD after accept, fd:%d\n",fdCurr);
 				 	if( (conViewers + conPlayers) == 9){
@@ -228,36 +227,29 @@ int main(int argc, char** argv){
 					}
 					else if(conPlayers == p){
 						// max amount of players. new client is a viewer
+						printf("new client is a viewer\n");
 						addClientToQueue(fdCurr, 0);
-						// TODO: tell all clients
 					}
 					else{
 						// new client is a player
 						printf("new client is a player\n");
 						addClientToQueue(fdCurr, 1);
-						char currBuf[MSG_SIZE];
-						struct clientData thisClientData = ClientsQueue[conViewers+conPlayers]; 
-
-						game.valid = 1;
-						game.msg = 0;
-						game.myPlayerId = thisClientData.clientNum;
-						game.playing = thisClientData.isPlayer;
-						game.moveCount = 0;
-						game.isMyTurn = 0;
-						strcpy(game.msgTxt, "noMSG");
-						createGameDataBuff(game, buf);
-
-						//parseGameData(buf, &game);
-						printf("trying to send buf:%s\n",buf);
-						assert(sendAll(fdCurr, buf, &msg_SIZE) == -1);
-						printf("sent all\n");	
-						sleep(2);
-						exit(0);
-						// TODO: tell all clients
 					}
 				 }
 			}
 
+		/* Service all the sockets with input pending. */
+      for (i = 0; i < conPlayers+conViewers; ++i){
+      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
+      		printf("sock %d is ready for read\n", fd);
+      		errorIndicator = receiveFromClient(i, &msg_SIZE);
+      		if(errorIndicator < 0){
+ 				close(ClientsQueue[i].fd);
+				delClientFromQueue(ClientsQueue[i].fd);
+ 			}
+ 			else if(errorIndicator=1){
+ 				handleReadBuf(i);
+ 			}
       		
       	}
 
@@ -326,6 +318,48 @@ int main(int argc, char** argv){
 	}
 }
 
+/***
+	action for clientQueue[index]
+*/
+int handleReadBuf(int index){
+	struct clientMsg data;
+
+	parseClientMsg(ClientsQueue[index].readBuf, &data);
+	
+
+}
+
+
+
+/**
+	handles receive from client.
+	
+	1 for read all data from client
+	0 for read partial data
+	-1 for disconnected client
+*/
+int receiveFromClient(int index){
+	int total = 0; /* how many bytes we've received */
+ 	// size_t bytesleft = *len;  how many we have left to receive 
+    int n;
+    char buf[MSG_SIZE], temp[MSG_SIZE];
+	
+	// buf + strlen(buf) guarantees no override
+	n = recv(ClientsQueue[index].fd, buf +strlen(buf), strlen(buf), 0);
+	if(n <= 0){
+		//client disconected
+		delClientFromQueue(ClientsQueue[index].fd);
+		return -1;
+	}
+	if(sscanf(buf,"(%s)",temp) ==1){
+		printf("index:%d, num:%d, socket:%d, has full msg in his buffer\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd)
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
 void sendClientConnected(int fd, struct gameData *data){
 	struct clientData thisClientData;
 	char buf[MSG_SIZE];
@@ -347,11 +381,11 @@ void sendClientConnected(int fd, struct gameData *data){
 void SendCantConnectToClient(int fd){
 	int errorIndicator;
 	char buf[MSG_SIZE];
-	struct gameData game;
+	struct gameData newGame;
 
 	// -1 stands for too many clients connected
-	game.valid =-1;
-	createGameDataBuff(game, buf);
+	newGame.valid =-1;
+	createGameDataBuff(newGame, buf);
 
 	errorIndicator = sendAll(fd, buf, &msg_SIZE);
 	checkForNegativeValue(errorIndicator, "send", fd);
@@ -533,22 +567,47 @@ int sendAll(int s, char *buf, int *len) {
 void addClientToQueue(int newFd, int isPlayer){
 	struct clientData newClient;
 	int newClientIndex;
+	struct gameData newGame;
+	int i;
 
+	// handling queue
 	newClientIndex = conPlayers+conViewers; 
 	newClient.fd = newFd;
 	newClient.clientNum = minFreeClientNum;
 	newClient.isPlayer = isPlayer;
+	ClientsQueue[newClientIndex] = newClient;
 
-	minFreeClientNum++;
-	
+	// handling globals
 	if(isPlayer){
 		conPlayers++;
 	}
 	else{
 		conViewers++;
 	}
+	minFreeClientNum =0;
+	for(i=0; i<conPlayers+conViewers; i++){
+		if(minFreeClientNum >= ClientsQueue[i].clientNum){
+			minFreeClientNum = ClientsQueue[i].clientNum+1;
+		}
+	}
 
-	ClientsQueue[newClientIndex] = newClient;
+	// handling writeBuf
+	newGame.valid = 1;
+	newGame.msg=0;
+	newGame.isMyTurn = (conViewers+conPlayers == 1) ? 1 : 0; // this is new client turn only if he is the only one here
+	newGame.win =-1;
+	newGame.numOfPlayers = game.numOfPlayers;
+	newGame.myPlayerId = newClient.clientNum;
+	newGame.playing = newClient.isPlayer;
+	newGame.isMisere = game.isMisere;
+	newGame.heapA = game.heapA;
+	newGame.heapB = game.heapB;
+	newGame.heapC = game.heapC;
+	newGame.heapD = game.heapD;
+	newGame.moveCount = game.moveCount;
+
+	// first write to writeBuf. no worries of ruining previous data
+	createGameDataBuff(newGame, ClientsQueue[newClientIndex].writeBuf);
 }
 
 /** fd - fd of client that was disconnected
