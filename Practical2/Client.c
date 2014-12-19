@@ -454,7 +454,7 @@ void checkForNegativeValue(int num, char* func, int sock){
 }
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%s$",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%s$)",
 	 data.heap,
 	 data.amount,
 	 data.msg,
@@ -464,7 +464,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "%d$%d$%d$%d$%d$%s$",
+	return sscanf(buf, "(%d$%d$%d$%d$%d$%s$)",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
@@ -475,7 +475,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
  	printf("parseGameData trying to parse:%s\n", buf);
-	int x = sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+	int x = sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -496,7 +496,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
 	 data.valid,
 	 data.isMyTurn,
 	 data.msg,

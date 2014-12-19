@@ -56,6 +56,9 @@ struct clientData{
 	int fd;			// fd that was returned from select
 	int clientNum;	// client number implemented bonus style
 	int isPlayer;
+	char readBuf[MSG_SIZE];		// contains data read from client
+	char writeBuf[MSG_SIZE]; 	// contains data to write to client
+	int needToWrite; // indicating whether writeBuf is contains data
 };
 
 struct clientData ClientsQueue[10];	// queue for connected clients
@@ -195,7 +198,9 @@ int main(int argc, char** argv){
 		for(i=0 ; i< conViewers + conPlayers ; i++){
 			printf("clients to add\n");
 			FD_SET(ClientsQueue[i].fd, &fdSetRead);
-			FD_SET(ClientsQueue[i].fd, &fdSetWrite);
+			if(ClientsQueue[i].needToWrite){
+				FD_SET(ClientsQueue[i].fd, &fdSetWrite);
+			}
 			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
 		}
 
@@ -205,9 +210,9 @@ int main(int argc, char** argv){
 		printf("Exit select...\n");
 
 		/* Service all the sockets with input pending. */
-      for (i = 0; i < FD_SETSIZE; ++i){
-      	if (FD_ISSET (i, &fdSetRead)){
-      		printf("sock %d is ready for read\n", i);
+      for (i = 0; i < conPlayers+conViewers; ++i){
+      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
+      		printf("sock %d is ready for read\n", fd);
 
       		if (sockListen == i)
       		{
@@ -527,7 +532,9 @@ int sendAll(int s, char *buf, int *len) {
 */
 void addClientToQueue(int newFd, int isPlayer){
 	struct clientData newClient;
+	int newClientIndex;
 
+	newClientIndex = conPlayers+conViewers; 
 	newClient.fd = newFd;
 	newClient.clientNum = minFreeClientNum;
 	newClient.isPlayer = isPlayer;
@@ -541,7 +548,7 @@ void addClientToQueue(int newFd, int isPlayer){
 		conViewers++;
 	}
 
-	ClientsQueue[conPlayers+conViewers] = newClient;
+	ClientsQueue[newClientIndex] = newClient;
 }
 
 /** fd - fd of client that was disconnected
@@ -682,7 +689,7 @@ void handleMsg(struct clientMsg clientMove,int index){
 
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%s$",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%s$)",
 	 data.heap,
 	 data.amount,
 	 data.msg,
@@ -692,7 +699,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "%d$%d$%d$%d$%d$%s$",
+	return sscanf(buf, "(%d$%d$%d$%d$%d$%s$)",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
@@ -702,7 +709,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	return sscanf( buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+	return sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -720,7 +727,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
 	 data.valid,
 	 data.isMyTurn,
 	 data.msg,
