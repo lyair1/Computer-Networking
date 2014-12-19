@@ -41,7 +41,7 @@ Server Response to client msg:
 
 			'gameData' obj with all of the data of the new turn game (valid == 0 if the move was invalid: e.g. reduce 10 from stack of 2)
 
-			if the move is valid, server sends the 'gameData' obj to all clients. myPlayerId == the id of the last client who made a move.
+			if the move is valid, server sends the 'gameData' obj to all clients. myPlayerId == the id of the last client who made the move. playing == 2. 
 
 
 		msg == 1:
@@ -66,7 +66,18 @@ Server notify viewer client that he turns to be a player
 
 		valid = 1
 		playing = 1
-		isMyTurn
+
+		other params will be ignored
+
+****************************
+Server notify viewer client that it is his turn
+****************************
+
+	Server sends a 'GameData' obj with:
+
+		valid = 1
+		playing = 1
+		isMyTurn = 1
 
 		other params will be ignored
 

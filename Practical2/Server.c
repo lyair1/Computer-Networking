@@ -89,6 +89,7 @@ void SendCantConnectToClient(int fd);
 void sendInvalidMoveToPlayer(int index);
 void updateEveryoneOnMove(int index);
 void notifyOnTurn();
+void notifyOnTurningToPlayer();
 
 void addClientToQueue(int newFd, int isPlayer);
 int delClientFromQueue(int fd);
@@ -251,7 +252,6 @@ int main(int argc, char** argv){
       		if(errorIndicator < 0){
  				close(ClientsQueue[i].fd);
 				delClientFromQueue(ClientsQueue[i].fd);
-				// TODO: if it is the turn of the disconnected client, need to update the client which it is his turn now (like israeli)
  			}
  			else if(errorIndicator == 1){
  				handleReadBuf(i);
@@ -263,7 +263,6 @@ int main(int argc, char** argv){
       		if(errorIndicator < 0){
 				close(ClientsQueue[i].fd);
 				delClientFromQueue(ClientsQueue[i].fd);
-				// TODO: if it is the turn of the disconnected client, need to update the client which it is his turn now (like israeli)
       		}
       	}
       }
@@ -388,6 +387,21 @@ void notifyOnTurn(){
 
 	createGameDataBuff(newGame, buf);
 	strcat(ClientsQueue[clientIndexTurn].writeBuf, buf);
+}
+
+void notifyOnTurningToPlayer(){
+	char buf[MSG_SIZE];
+	struct gameData newGame;
+	int index;
+
+	index = conPlayers;
+
+	newGame.isMyTurn =0;
+	newGame.valid=1;
+	newGame.playing=1;
+
+	createGameDataBuff(newGame, buf);
+	strcat(ClientsQueue[index].writeBuf, buf);
 }
 
 void updateEveryoneOnMove(int index){
@@ -710,12 +724,11 @@ void addClientToQueue(int newFd, int isPlayer){
 }
 
 /** fd - fd of client that was disconnected
-	return value - 1 deleted client is a player, 0 for viewer
+	return value - 1 deleted client is a player, 0 for viewer, 2 for need to notify on new turn
 */
 int delClientFromQueue(int fd){
 	int i;
 	struct clientData delClient;
-
 
 	/* find and copy deleted client*/
 	for(i=0; i< conViewers+conPlayers; i++){
@@ -725,22 +738,28 @@ int delClientFromQueue(int fd){
 		}
 	}
 
-	/* preserve global turn*/
-	if(i < clientIndexTurn){
-		clientIndexTurn--;
-	}
-
 	/* move clients after deleted client to the left*/
 	for(; i< conViewers+conPlayers - 1; i++){
 		ClientsQueue[i] = ClientsQueue[i+1];
 	}
 	
+	/* preserve global turn*/
+	if(i < clientIndexTurn){
+		clientIndexTurn--;
+	}
+	else if(i < clientIndexTurn){
+		notifyOnTurn();
+	}
+
 	/* update globals */
 	if(delClient.clientNum < minFreeClientNum){
 		minFreeClientNum = delClient.clientNum;
 	}
 	if(delClient.isPlayer){
 		conPlayers--;
+		if(conViewers>0){
+			notifyOnTurningToPlayer();
+		}
 		return 1;
 	}
 	else{
