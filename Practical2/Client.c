@@ -237,10 +237,10 @@ int main(int argc, char const *argv[])
 		}
 
 		if(FD_ISSET(sock , &fdSetRead)){
-			receiveAll(sock, readBuf, &rSize);
-			printf("D: Read from sock rcv:%s\n", readBuf);
+			char rBuf[MSG_SIZE];
+			receiveAll(sock, rBuf, &rSize);
 			int oldMoveCount = game.moveCount;
-			parseGameData(readBuf, &game);
+			parseGameData(rBuf, &game);
 
 			// change from viewer to playing
 			if (playing == 0 && game.playing == 1)
@@ -438,7 +438,9 @@ int sendAll(int s, char *buf, int *len) {
 			}
 			total += n;
 			bytesleft -= n;
+			printf("D: Total:%d, Len:%d ---- parseGameData():%d, buf:%s\n", total,*len,parseGameData(buf, &gd), buf);
 	  	}
+	  	printf("D: received all\n");
 	*len = total; /* return number actually sent here */
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }

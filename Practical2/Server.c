@@ -76,7 +76,6 @@ int CheckAndMakeClientMove(struct clientMsg clientMove);
 
 // common
 int sendAll(int s, char *buf, int *len);
-int receiveAll(int s, char *buf, int *len);
 void checkForZeroValue(int num, int sock);
 void checkForNegativeValue(int num, char* func, int sock);
 int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data);
@@ -258,6 +257,7 @@ int main(int argc, char** argv){
 					delClientFromQueue(ClientsQueue[i].fd);
 	 			}
 	 			else if(errorIndicator == 1){
+	 				printf("handling received data\n"); 
 	 				handleReadBuf(i);
 	 			}
 
@@ -349,7 +349,9 @@ int sendToClient(int index){
 		return -1;
 	}
 	// writing succeeded. need to move move buffer head
+	printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
 	strcpy(ClientsQueue[index].writeBuf, ClientsQueue[index].writeBuf+n);
+	printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
 	return 1;
 }
 
@@ -361,7 +363,11 @@ void handleReadBuf(int index){
 	int retVal;
 	parseClientMsg(ClientsQueue[index].readBuf, &data);
 
-	if(data.msg){
+	// Todo: handle more than 1 read at a time!
+	strcpy(ClientsQueue[index].readBuf, "");
+
+	if(data.msg == 1){
+		printf("Read msg from client\n");
 		handleIncomingMsg(data, index);
 	}
 	else{
@@ -369,9 +375,12 @@ void handleReadBuf(int index){
 		retVal = CheckAndMakeClientMove(data);
 		clientIndexTurn = (clientIndexTurn+1) % (conPlayers); // keep the turn moving only between connected players
 		if(retVal ==-1){
+			printf("invalid client move\n");
 			sendInvalidMoveToPlayer(index);
 		}
 		else{
+			printf("valid client move\n");
+			game.moveCount++;
 			updateEveryoneOnMove(index);
 			if(retVal==0) {
 				notifyOnTurn();
@@ -481,16 +490,14 @@ int receiveFromClient(int index){
     char temp[MSG_SIZE];
 	
 	// buf + strlen(buf) guaranties no override
-	n = recv(ClientsQueue[index].fd, ClientsQueue[index].writeBuf+strlen(ClientsQueue[index].writeBuf), MSG_SIZE , 0);
-	
-	// TODO: Not doing anything with the data!
+	n = recv(ClientsQueue[index].fd, ClientsQueue[index].readBuf+strlen(ClientsQueue[index].readBuf), MSG_SIZE , 0);
 
 	if(n <= 0){
 		//client disconected
 		return -1;
 	}
-	if(sscanf(buf,"(%s)",temp) ==1){
-		printf("index:%d, num:%d, socket:%d, has full msg in his buffer\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd);
+	if(sscanf(ClientsQueue[index].readBuf,"(%s)",temp) ==1){
+		printf("index:%d, num:%d, socket:%d, has full msg in his buffer:%s\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd,ClientsQueue[index].readBuf);
 		return 1;
 	}
 	return 0;
@@ -536,7 +543,7 @@ void SendCantConnectToClient(int fd){
 				0 valid move, nobody won
 **/
 int CheckAndMakeClientMove(struct clientMsg clientMove){
-
+	printf("checking move for heap:%d, count:%d\n",clientMove.heap, clientMove.amount);
 	if(clientMove.heap<0 || clientMove.heap>3){
 		return -1;
 	}
@@ -656,23 +663,6 @@ int sendAll(int s, char *buf, int *len) {
 	  	
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
-
- int receiveAll(int s, char *buf, int *len) {
- 	int total = 0; /* how many bytes we've received */
- 	size_t bytesleft = *len; /* how many we have left to receive */
-    int n;
-	
-	while(total < *len) {
-			n = recv(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n,s);
-			if (n == -1) { break; }
-			total += n;
-			bytesleft -= n;
-	  	}
-	*len = total; /* return number actually sent here */
-	  	
-	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
- }
 
  void checkForZeroValue(int num, int sock){
 	if(num==0){
