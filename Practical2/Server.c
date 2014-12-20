@@ -481,7 +481,7 @@ int receiveFromClient(int index){
     char temp[MSG_SIZE];
 	
 	// buf + strlen(buf) guaranties no override
-	n = recv(ClientsQueue[index].fd, ClientsQueue[index].writeBuf, strlen(ClientsQueue[index].writeBuf), 0);
+	n = recv(ClientsQueue[index].fd, ClientsQueue[index].writeBuf+strlen(ClientsQueue[index].writeBuf), MSG_SIZE , 0);
 	
 	// TODO: Not doing anything with the data!
 
