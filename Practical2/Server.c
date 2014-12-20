@@ -427,7 +427,10 @@ void updateEveryoneOnMove(int index){
 	game.myPlayerId = ClientsQueue[index].clientNum;
 	createGameDataBuff(game, buf);
 	for(i=0; i<conPlayers+conViewers; i++){
-		strcat(ClientsQueue[i].writeBuf, buf);
+		if (i != index)
+		{
+			strcat(ClientsQueue[i].writeBuf, buf);
+		}	
 	}
 }
 void sendInvalidMoveToPlayer(int index){

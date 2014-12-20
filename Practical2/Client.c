@@ -147,16 +147,18 @@ int main(int argc, char const *argv[])
 	printGameState(game);
 
 	int addReadyForSend = 0;
-	if (myTurn == 1)
-	{
-		 printf("Your turn:\n");
-	}
 
 	fd_set fdSetRead, fdSetWrite;
 	struct clientMsg cm;
 	
 	while(game.win == -1){
 		printf("D: Starting loop\n");
+
+		if (myTurn == 1)
+		{	
+			printf("Your turn:\n");
+		}
+
 		// clear set and add listner
 
 		// TODO: need to add timeout
