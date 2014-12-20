@@ -212,6 +212,9 @@ int main(int argc, char** argv){
 				printf("Adding fd:%d to write\n",ClientsQueue[i].fd);
 				FD_SET(ClientsQueue[i].fd, &fdSetWrite);
 			}
+			else{
+				printf("ClientsQueue[i].writeBuf = %s\n",ClientsQueue[i].writeBuf);
+			}
 			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
 		}
 
@@ -374,6 +377,7 @@ void handleReadBuf(int index){
 		// client sent a move
 		if(index != clientIndexTurn){
 			// it is not the client turn
+			printf("Client played out of turn");
 			sendInvalidMoveToPlayer(index);
 			return;
 		}
