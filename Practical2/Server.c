@@ -197,7 +197,6 @@ int main(int argc, char** argv){
 	
 	while(1){
 		// clear set and add listner
-		sleep(4);
 		
 		maxClientFd = sockListen;
 		FD_ZERO(&fdSetRead);
@@ -206,10 +205,12 @@ int main(int argc, char** argv){
 		printf("listening socket is:%d\n",sockListen);
 
 		// add all clients to fdSetRead
+		printf("clients to add. players:%d, viewers:%d\n",conPlayers,conViewers);
 		for(i=0 ; i< conViewers + conPlayers ; i++){
-			printf("clients to add. players:%d, viewers:%d\n",conPlayers,conViewers);
+			printf("Adding fd:%d to read\n",ClientsQueue[i].fd);
 			FD_SET(ClientsQueue[i].fd, &fdSetRead);
 			if(strlen(ClientsQueue[i].writeBuf) > 0){
+				printf("Adding fd:%d to write\n",ClientsQueue[i].fd);
 				FD_SET(ClientsQueue[i].fd, &fdSetWrite);
 			}
 			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
@@ -220,7 +221,7 @@ int main(int argc, char** argv){
 		fdready = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 		printf("Exit select...fdReady = %d\n",fdready);
 
-		printf("%s...\n",strerror(errno));
+		// printf("%s...\n",strerror(errno));
 		if (FD_ISSET (sockListen, &fdSetRead))
       		{
       			 printf("Reading from sock listen\n");
@@ -235,12 +236,12 @@ int main(int argc, char** argv){
 					}
 					else if(conPlayers == p){
 						// max amount of players. new client is a viewer
-						printf("new client is a viewer\n");
+						printf("new client is a viewer: fd:%d\n",fdCurr);
 						addClientToQueue(fdCurr, 0);
 					}
 					else{
 						// new client is a player
-						printf("new client is a player\n");
+						printf("new client is a player: fd:%d\n",fdCurr);
 						addClientToQueue(fdCurr, 1);
 					}
 				 }
@@ -248,7 +249,7 @@ int main(int argc, char** argv){
 
 		/* Service all the sockets with input pending. */
      	for (i = 0; i < conPlayers+conViewers; ++i){
-     		printf("i=%d, fd=%d\n", i, ClientsQueue[i].fd);
+     		printf("checking: i=%d, fd=%d\n", i, ClientsQueue[i].fd);
 	      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
 	      		printf("sock %d is ready for read\n", ClientsQueue[i].fd);
 	      		errorIndicator = receiveFromClient(i);
@@ -259,6 +260,7 @@ int main(int argc, char** argv){
 	 			else if(errorIndicator == 1){
 	 				handleReadBuf(i);
 	 			}
+
 	      	}
 
 	      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetWrite)){
@@ -478,8 +480,11 @@ int receiveFromClient(int index){
     int n;
     char buf[MSG_SIZE], temp[MSG_SIZE];
 	
-	// buf + strlen(buf) guarantees no override
+	// buf + strlen(buf) guaranties no override
 	n = recv(ClientsQueue[index].fd, buf +strlen(buf), strlen(buf), 0);
+	
+	// TODO: Not doing anything with the data!
+
 	if(n <= 0){
 		//client disconected
 		return -1;
@@ -639,9 +644,9 @@ int sendAll(int s, char *buf, int *len) {
    	int n;
 	
 	while(total < *len) {
-			printf("sending data...\n");
+			printf("D: sending data...\n");
 			n = send(s, buf+total, bytesleft, 0);
-			printf("sent %d bytes\n", n);
+			printf("D: sent %d bytes\n", n);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
