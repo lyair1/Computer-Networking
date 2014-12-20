@@ -372,6 +372,12 @@ void handleReadBuf(int index){
 	}
 	else{
 		// client sent a move
+		if(index != clientIndexTurn){
+			// it is not the client turn
+			sendInvalidMoveToPlayer(index);
+			return;
+		}
+
 		retVal = CheckAndMakeClientMove(data);
 		clientIndexTurn = (clientIndexTurn+1) % (conPlayers); // keep the turn moving only between connected players
 		if(retVal ==-1){
