@@ -87,6 +87,7 @@ void PRINT_Debug(char* msg);
 void SendCantConnectToClient(int fd);
 void sendInvalidMoveToPlayer(int index);
 void updateEveryoneOnMove(int index);
+void updateEveryoneOnMoveExceptIndex(int index);
 void notifyOnTurn();
 void notifyOnTurningToPlayer();
 
@@ -388,10 +389,11 @@ void handleReadBuf(int index){
 		if(retVal ==-1){
 			printf("invalid client move\n");
 			sendInvalidMoveToPlayer(index);
+			updateEveryoneOnMoveExceptIndex(index);
+			notifyOnTurn();
 		}
 		else{
 			printf("valid client move\n");
-			game.moveCount++;
 			updateEveryoneOnMove(index);
 			if(retVal==0) {
 				notifyOnTurn();
@@ -417,16 +419,15 @@ void notifyOnTurn(){
 
 void notifyOnTurningToPlayer(){
 	char buf[MSG_SIZE];
-	struct gameData newGame;
 	int index;
 
 	index = conPlayers;
 
-	newGame.isMyTurn =0;
-	newGame.valid=1;
-	newGame.playing=1;
+	game.isMyTurn = 0;
+	game.valid=1;
+	game.playing=1;
 
-	createGameDataBuff(newGame, buf);
+	createGameDataBuff(game, buf);
 	strcat(ClientsQueue[index].writeBuf, buf);
 }
 
@@ -436,6 +437,21 @@ void updateEveryoneOnMove(int index){
 
 	game.myPlayerId = ClientsQueue[index].clientNum;
 	for(i=0; i<conPlayers+conViewers; i++){
+		game.playing = ClientsQueue[i].isPlayer;
+		createGameDataBuff(game, buf);
+		strcat(ClientsQueue[i].writeBuf, buf);
+	}
+}
+
+void updateEveryoneOnMoveExceptIndex(int index){
+	int i;
+	char buf[MSG_SIZE];
+
+	game.myPlayerId = ClientsQueue[index].clientNum;
+	for(i=0; i<conPlayers+conViewers; i++){
+		if(i==index){
+			continue;
+		}
 		game.playing = ClientsQueue[i].isPlayer;
 		createGameDataBuff(game, buf);
 		strcat(ClientsQueue[i].writeBuf, buf);
