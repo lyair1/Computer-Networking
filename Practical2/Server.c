@@ -172,6 +172,7 @@ int main(int argc, char** argv){
 	game.win = -1;
 	game.numOfPlayers = p;
 	game.msg = 0;
+	game.moveCount = 0;
 
 	
 	/*printf("Set all arguments, start server\n");*/
@@ -374,13 +375,13 @@ void handleReadBuf(int index){
 		handleIncomingMsg(data, index);
 	}
 	else{
-		// // client sent a move
-		// if(index != clientIndexTurn){
-		// 	// it is not the client turn
-		// 	printf("Client played out of turn");
-		// 	sendInvalidMoveToPlayer(index);
-		// 	return;
-		// }
+		// client sent a move
+		if(index != clientIndexTurn){
+			// it is not the client turn
+			printf("Client played out of turn");
+			sendInvalidMoveToPlayer(index);
+			return;
+		}
 
 		retVal = CheckAndMakeClientMove(data);
 		clientIndexTurn = (clientIndexTurn+1) % (conPlayers); // keep the turn moving only between connected players
@@ -433,20 +434,18 @@ void updateEveryoneOnMove(int index){
 	int i;
 	char buf[MSG_SIZE];
 
-	game.playing = 2;
 	game.myPlayerId = ClientsQueue[index].clientNum;
-	createGameDataBuff(game, buf);
 	for(i=0; i<conPlayers+conViewers; i++){
-		if (i != index)
-		{
-			strcat(ClientsQueue[i].writeBuf, buf);
-		}	
+		game.playing = ClientsQueue[i].isPlayer;
+		createGameDataBuff(game, buf);
+		strcat(ClientsQueue[i].writeBuf, buf);
 	}
 }
 void sendInvalidMoveToPlayer(int index){
 	char buf[MSG_SIZE];
 
 	game.valid = 0;
+	game.playing = ClientsQueue[index].isPlayer;
 
 	strcpy(game.msgTxt, "");
 
@@ -467,6 +466,8 @@ void handleIncomingMsg(struct clientMsg data,int index){
 
 	newGame.valid =1;
 	newGame.msg = ClientsQueue[index].clientNum;
+	newGame.playing = ClientsQueue[index].isPlayer;
+
 	strcpy(newGame.msgTxt, data.msgTxt);
 
 	createGameDataBuff(newGame, buf);
@@ -557,6 +558,8 @@ void SendCantConnectToClient(int fd){
 **/
 int CheckAndMakeClientMove(struct clientMsg clientMove){
 	printf("checking move for heap:%d, count:%d\n",clientMove.heap, clientMove.amount);
+	// move count is allways increased if a player played on his turn
+	game.moveCount++;
 	if(clientMove.heap<0 || clientMove.heap>3){
 		return -1;
 	}
@@ -609,12 +612,12 @@ int CheckAndMakeClientMove(struct clientMsg clientMove){
 	if(IsBoardClear(game)){
 		if(game.isMisere){
 			// all other clients win
-			game.win=2;
+			game.win=clientIndexTurn;
 			return 2;
 		}
 		else{
 			// Client win
-			game.win=1;
+			game.win=clientIndexTurn;
 			return 1;
 		}
 	}
@@ -709,12 +712,22 @@ void addClientToQueue(int newFd, int isPlayer){
 	else{
 		conViewers++;
 	}
-	minFreeClientNum =0;
-	for(i=0; i<conPlayers+conViewers; i++){
-		if(minFreeClientNum >= ClientsQueue[i].clientNum){
-			minFreeClientNum = ClientsQueue[i].clientNum+1;
+
+	// finding new MinFreeClientNum
+	for(minFreeClientNum = 1; minFreeClientNum<100; minFreeClientNum++){
+		for(i=0; i<conPlayers+conViewers; i++){
+			if(minFreeClientNum == ClientsQueue[i].clientNum){
+				// we found a client with the same number. need to continue to next outside iteration
+				break;
+			}
+		}
+		if(minFreeClientNum != ClientsQueue[i].clientNum){
+			// kind of nasty code, but should work.
+			// we are exiting main loop because we have found our number (inner loop finished)
+			break;
 		}
 	}
+
 
 	// handling writeBuf
 	newGame.valid = 1;
