@@ -800,9 +800,9 @@ int delClientFromQueue(int fd){
 	if(delClient.isPlayer){
 		conPlayers--;
 		if(conViewers>0){
+			notifyOnTurningToPlayer();
 			conPlayers++;
 			conViewers--;
-			notifyOnTurningToPlayer();
 		}
 		return 1;
 	}
