@@ -800,7 +800,20 @@ int delClientFromQueue(int fd){
 
 	/* update globals */
 	if(delClient.clientNum < minFreeClientNum){
-		minFreeClientNum = delClient.clientNum;
+		// finding new MinFreeClientNum
+		for(minFreeClientNum = 1; minFreeClientNum<100; minFreeClientNum++){
+			for(i=0; i<conPlayers+conViewers; i++){
+				if(minFreeClientNum == ClientsQueue[i].clientNum){
+					// we found a client with the same number. need to continue to next outside iteration
+					break;
+				}
+			}
+			if(minFreeClientNum != ClientsQueue[i].clientNum){
+				// kind of nasty code, but should work.
+				// we are exiting main loop because we have found our number (inner loop finished)
+				break;
+			}
+		}
 	}
 
 	if(delClient.isPlayer){
