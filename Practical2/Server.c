@@ -769,7 +769,7 @@ void addClientToQueue(int newFd, int isPlayer){
 	return value - 1 deleted client is a player, 0 for viewer, 2 for need to notify on new turn
 */
 int delClientFromQueue(int fd){
-	int i;
+	int i,j;
 	struct clientData delClient;
 
 	printf("in delClientFromQueue. clientIndexTurn=%d\n",clientIndexTurn);
@@ -781,11 +781,11 @@ int delClientFromQueue(int fd){
 			break;
 		}
 	}
-
+	j=i;
 	/* move clients after deleted client to the left*/
-	for(; i< conViewers+conPlayers - 1; i++){
-		ClientsQueue[i] = ClientsQueue[i+1];
-		printf("copying to %d\n",i);
+	for(; j< conViewers+conPlayers - 1; j++){
+		ClientsQueue[j] = ClientsQueue[j+1];
+		printf("copying to %d\n",j);
 	}
 	
 	/* preserve global turn*/
