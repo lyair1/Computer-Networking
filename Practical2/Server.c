@@ -629,12 +629,12 @@ int CheckAndMakeClientMove(struct clientMsg clientMove){
 	if(IsBoardClear(game)){
 		if(game.isMisere){
 			// all other clients win
-			game.win=clientIndexTurn;
+			game.win=ClientsQueue[clientIndexTurn].clientNum;
 			return 2;
 		}
 		else{
 			// Client win
-			game.win=clientIndexTurn;
+			game.win=ClientsQueue[clientIndexTurn].clientNum;
 			return 1;
 		}
 	}
