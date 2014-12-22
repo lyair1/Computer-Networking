@@ -344,7 +344,7 @@ int sendToClient(int index){
 
    	int n;
 	
-	printf("sending data...\n");
+	printf("sending data...:%s\n",ClientsQueue[index].writeBuf);
 	n = send(ClientsQueue[index].fd, ClientsQueue[index].writeBuf, strlen(ClientsQueue[index].writeBuf), 0);
 	printf("sent %d bytes to index: %d\n", n, index);
 	if(n <= 0){
@@ -374,13 +374,13 @@ void handleReadBuf(int index){
 		handleIncomingMsg(data, index);
 	}
 	else{
-		// client sent a move
-		if(index != clientIndexTurn){
-			// it is not the client turn
-			printf("Client played out of turn");
-			sendInvalidMoveToPlayer(index);
-			return;
-		}
+		// // client sent a move
+		// if(index != clientIndexTurn){
+		// 	// it is not the client turn
+		// 	printf("Client played out of turn");
+		// 	sendInvalidMoveToPlayer(index);
+		// 	return;
+		// }
 
 		retVal = CheckAndMakeClientMove(data);
 		clientIndexTurn = (clientIndexTurn+1) % (conPlayers); // keep the turn moving only between connected players

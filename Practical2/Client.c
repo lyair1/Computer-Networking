@@ -58,19 +58,30 @@ struct gameData game;
 int connectToServer(int sock, const char* address, char* port);
 void printGameState(struct gameData game);
 void printWinner(struct gameData game);
-struct gameData receiveDataFromServer(int sock);
+// struct gameData receiveDataFromServer(int sock);
 void printValid(struct gameData game);
 struct clientMsg getMoveFromInput(int sock, char* cmd);
 
 // common
 int sendAll(int s, char *buf, int *len);
-int receiveAll(int s, char *buf, int *len);
+int receiveAll(int s, char *buf, int *len, int first);
 void checkForZeroValue(int num, int sock);
 void checkForNegativeValue(int num, char* func, int sock);
 int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data);
 void createClientMsgBuff(struct clientMsg data, char* buf);
 void createGameDataBuff(struct gameData data, char* buf);
 int parseGameData(char buf[MSG_SIZE], struct gameData* data);
+void updateStaticParams();
+ void handleMsg(char *buf);
+ void handleFirstMsg(char *buf);
+
+void updateStaticParams(){
+	playing = game.playing;
+	playerId = game.myPlayerId;
+	isMisere = game.isMisere;
+	moveCount = game.moveCount;
+	myTurn = game.isMyTurn;
+}
 
 int main(int argc, char const *argv[])
 { 
@@ -113,7 +124,8 @@ int main(int argc, char const *argv[])
 	/*struct clientMsg m;*/
 	// Get initial data 
 	printf("D: trying to get initial data\n");
-	game = receiveDataFromServer(sock);
+	char readBuf[MSG_SIZE];
+	receiveAll(sock, readBuf, &MSG_SIZE,1);
 	printf("D: got initial data\n");
 	//got the initial data from the server
 	if (game.valid == 0)
@@ -122,11 +134,7 @@ int main(int argc, char const *argv[])
 		 return 0;
 	}
 
-	playing = game.playing;
-	playerId = game.myPlayerId;
-	isMisere = game.isMisere;
-	moveCount = game.moveCount;
-	myTurn = game.isMyTurn;
+	updateStaticParams();
 
 	if (isMisere == 1)
 	{
@@ -151,13 +159,13 @@ int main(int argc, char const *argv[])
 	fd_set fdSetRead, fdSetWrite;
 	struct clientMsg cm;
 	
-	while(game.win == -1){
-		printf("D: Starting loop\n");
+	if (myTurn == 1)
+	{	
+		printf("Your turn:\n");
+	}
 
-		if (myTurn == 1)
-		{	
-			printf("Your turn:\n");
-		}
+	while(game.win == -1){
+		//printf("D: Starting loop\n");
 
 		// clear set and add listner
 
@@ -180,19 +188,10 @@ int main(int argc, char const *argv[])
 			FD_SET(sock, &fdSetWrite);
 		}
 
+		printf("D: select...\n");
 		int fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
 		printf("D: fdready:%d\n", fdReady);
 		// Print ready clients:
-		int i;
-		for (i = 0; i < maxClientFd+1; ++i)
-		{
-			if(FD_ISSET(i , &fdSetWrite)){
-				printf("D: fd:%d is ready for write\n",i);
-			}
-			if(FD_ISSET(i , &fdSetRead)){
-				printf("D: fd:%d is ready for read\n",i);
-			}
-		}
 
 		if(fdReady == 0){
 			printf("D: no fd ready\n");
@@ -208,7 +207,6 @@ int main(int argc, char const *argv[])
 			addReadyForSend = 0;
 		}
 
-		char readBuf[MSG_SIZE];
 		int rSize = MSG_SIZE;
 		
 		if(FD_ISSET(STDIN , &fdSetRead)){
@@ -240,22 +238,9 @@ int main(int argc, char const *argv[])
 
 		if(FD_ISSET(sock , &fdSetRead)){
 			char rBuf[MSG_SIZE];
-			receiveAll(sock, rBuf, &rSize);
-			int oldMoveCount = game.moveCount;
-			parseGameData(rBuf, &game);
-
-			// change from viewer to playing
-			if (playing == 0 && game.playing == 1)
-			{
-				playing = 1;
-			}
-
-			if (oldMoveCount != game.moveCount)
-			{
-				printGameState(game);
-			}
+			receiveAll(sock, rBuf, &rSize,0);
 		}
-		printf("D: ending loop\n");
+		//printf("D: ending loop\n");
 	}
 
 	printf("D: Exited the loop!\n");
@@ -352,26 +337,26 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 	return m;
 }
 
-struct gameData receiveDataFromServer(int sock)
-{
-	char buf[MSG_SIZE];
-	struct gameData game;
-	int rec = receiveAll(sock, buf, &MSG_SIZE);
+// struct gameData receiveDataFromServer(int sock)
+// {
+// 	char buf[MSG_SIZE];
+// 	struct gameData game;
+// 	int rec = receiveAll(sock, buf, &MSG_SIZE);
 
-	if (rec == -1)
-	{
-		fprintf(stderr, "failed to receive initial data\n");
-		close(sock);
-    	exit(2);
-	}
+// 	// if (rec == -1)
+// 	// {
+// 	// 	fprintf(stderr, "failed to receive initial data\n");
+// 	// 	close(sock);
+//  //    	exit(2);
+// 	// }
 
-	printf("D: received data from server\n");
-	parseGameData(buf, &game);
-	printf("D: parsed data from server\n");
-	/*printf("Data Received from server: %s\n",buf);*/
+// 	// printf("D: received data from server\n");
+// 	// parseGameData(buf, &game);
+// 	// printf("D: parsed data from server\n");
+// 	// /*printf("Data Received from server: %s\n",buf);*/
 
-	return game;
-}
+// 	return game;
+// }
 
 void printValid(struct gameData game)
 {
@@ -385,7 +370,7 @@ void printValid(struct gameData game)
 
 void printWinner(struct gameData game)
 {
-	if (game.playing == 0)
+	if (playing == 0)
 	{
 		printf("Game over!\n");
 
@@ -424,27 +409,155 @@ int sendAll(int s, char *buf, int *len) {
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
 
- int receiveAll(int s, char *buf, int *len) {
+ // int receiveAll(int s, char *buf, int *len) {
+ // 	int total = 0; /* how many bytes we've received */
+ // 	size_t bytesleft = *len; /* how many we have left to receive */
+ //    int n;
+	
+	// struct gameData gd;
+	// printf("D: trying to receive\n");
+	// while(total < *len) {
+	// 		n = recv(s, buf+total, bytesleft, 0);
+	// 		checkForZeroValue(n,s);
+	// 		if (n == -1) { 
+	// 			printf("D: recv failed\n");
+	// 			break; 
+	// 		}
+	// 		total += n;
+	// 		bytesleft -= n;
+	// 		printf("D: Total:%d, Len:%d ---- parseGameData():%d, buf:%s\n", total,*len,parseGameData(buf, &gd), buf);
+	// 		if (parseGameData(buf, &gd) == 14)
+	// 		{
+	// 			const char *ptr = strchr(buf, ')');
+	// 			if(ptr) {
+	// 				// remove the first msg
+ //   					int index = ptr - buf;
+ //   					strcpy(buf, ClientsQueue[index].writeBuf+index);
+	// 			}
+	// 			printf("read full server msg:%\n");
+
+	// 		}
+	//   	}
+	//   	printf("D: received all\n");
+	// *len = total; /* return number actually sent here */
+	//  return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+ // }
+
+ int receiveAll(int s, char *buf, int *len, int first) {
  	int total = 0; /* how many bytes we've received */
  	size_t bytesleft = *len; /* how many we have left to receive */
     int n;
-	
+	int endOfMsg = 0;
 	struct gameData gd;
-	printf("D: trying to receive\n");
-	while(total < *len && parseGameData(buf, &gd) < 14) {
-			n = recv(s, buf+total, bytesleft, 0);
-			checkForZeroValue(n,s);
-			if (n == -1) { 
-				printf("D: recv failed\n");
-				break; 
+	int index = 0;
+	int beforeFirst = 1;
+	while(endOfMsg == 0) {
+			char rBuff[500];
+			if (beforeFirst == 0)
+			{
+				n = recv(s, rBuff, 500, 0);
+				printf("D: recv came back(rBuff):%s\n",rBuff );
+				strcat(buf,rBuff);
+			}else{
+				n = recv(s, buf, bytesleft, 0);
+				printf("D: recv came back:%s\n",buf );
+				beforeFirst = 0;
 			}
+			//checkForZeroValue(n,s);
+			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
-			printf("D: Total:%d, Len:%d ---- parseGameData():%d, buf:%s\n", total,*len,parseGameData(buf, &gd), buf);
+		
+			const char *ptr = strchr(buf, ')');
+			while(ptr) {
+				// remove the first msg
+   				index = ptr - buf + 1;
+   				// Handle msg!!!
+   				if (first == 1)
+   				{
+   					 endOfMsg = 1;
+   					 handleFirstMsg(buf);
+   					 ptr = NULL;
+   					 continue;
+   				}
+   				handleMsg(buf);
+   				buf[n] = '\0';
+   				strcpy(buf, buf+index);
+   				printf("D: read full msg\n");
+   				if(buf[0] != '('){
+   					printf("D: set end of msg to 1\n");
+   					endOfMsg = 1;
+   				}
+
+   				ptr = strchr(buf, ')');
+			}
+			if (first == 1)
+			{
+				 break;
+			}
 	  	}
-	  	printf("D: received all\n");
-	*len = total; /* return number actually sent here */
+		*len = total; /* return number actually sent here */
+	  	printf("D: finish receiving all\n");
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+ }
+
+ void handleFirstMsg(char *buf){
+ 	printf("D: handling initial msg %s\n",buf);
+ 	parseGameData(buf, &game);
+ }
+
+ void handleMsg(char *buf)
+ {
+ 	printf("D: handling msg %s\n",buf);
+	int oldMoveCount = game.moveCount;
+	int oldPlaying = game.playing;
+	assert(14 == parseGameData(buf, &game));
+	updateStaticParams();
+	printGameState(game);
+
+	if (game.playing == 2 && game.valid == 1)
+	{
+		printf("D: player:%d played\n",game.myPlayerId );
+		
+		return;
+	}
+
+	if (oldPlaying == 0 && playing == 1 && game.valid == 1)
+	{
+		 // player turn to be a player
+		printf("You are now playing!\n");
+
+		if (game.isMyTurn == 1)
+		{
+			printf("Your turn:\n");
+		}
+
+		return;
+	}
+
+	// change from viewer to playing
+	if (playing == 0 && game.playing == 1 && game.valid == 1)
+	{
+		playing = 1;
+	}
+
+	if (oldMoveCount != game.moveCount)
+	{
+		if (game.valid == 1)
+		{
+			printf("Move accepted\n");
+		}else{
+			printf("Illegal move\n");
+		}
+		printGameState(game);
+	}
+
+	if (myTurn == 1)
+	{	
+		printf("Your turn:\n");
+	}
+
+
  }
 
  void checkForZeroValue(int num, int sock){
