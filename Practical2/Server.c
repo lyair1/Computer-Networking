@@ -789,7 +789,7 @@ int delClientFromQueue(int fd){
 	if(i < clientIndexTurn){
 		clientIndexTurn--;
 	}
-	else if(i == clientIndexTurn){
+	else if(i == clientIndexTurn && (ClientsQueue[i].isPlayer) ){
 		notifyOnTurn();
 	}
 
