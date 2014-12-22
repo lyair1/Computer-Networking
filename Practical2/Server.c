@@ -95,7 +95,7 @@ void addClientToQueue(int newFd, int isPlayer);
 int delClientFromQueue(int fd);
 void handleMsg(struct clientMsg ,int index);
 void handleIncomingMsg(struct clientMsg data,int index);
-int sendProperDataAfterMove(struct gameData data);
+// int sendProperDataAfterMove(struct gameData data);
 void handleReadBuf(int index);
 int receiveFromClient(int index);
 int sendToClient(int index);
@@ -772,10 +772,12 @@ int delClientFromQueue(int fd){
 	int i;
 	struct clientData delClient;
 
+	printf("in delClientFromQueue. clientIndexTurn=%d\n",clientIndexTurn);
 	/* find and copy deleted client*/
 	for(i=0; i< conViewers+conPlayers; i++){
 		if(ClientsQueue[i].fd == fd){
 			delClient = ClientsQueue[i];
+			printf("in for loop. found deleted index=%d\n",i);
 			break;
 		}
 	}
@@ -783,20 +785,24 @@ int delClientFromQueue(int fd){
 	/* move clients after deleted client to the left*/
 	for(; i< conViewers+conPlayers - 1; i++){
 		ClientsQueue[i] = ClientsQueue[i+1];
+		printf("copying to %d\n",i);
 	}
 	
 	/* preserve global turn*/
 	if(i < clientIndexTurn){
 		clientIndexTurn--;
+		printf("decreasing clientIndexTurn\n");
 	}
 	else if(i == clientIndexTurn && (ClientsQueue[i].isPlayer) ){
 		notifyOnTurn();
+		printf("notifyOnTurn\n");
 	}
 
 	/* update globals */
 	if(delClient.clientNum < minFreeClientNum){
 		minFreeClientNum = delClient.clientNum;
 	}
+
 	if(delClient.isPlayer){
 		conPlayers--;
 		if(conViewers>0){
@@ -813,67 +819,67 @@ int delClientFromQueue(int fd){
 }
 
 
-/**
- 	data - containing all off the game data
- 	return value - 1 if gameOver, 0 o.w
-*/
-int sendProperDataAfterMove(struct gameData data){
-	char buf[MSG_SIZE], bufToFollowingPlayer[MSG_SIZE];
-	int i, errorIndicator;
-	createGameDataBuff(data, buf);
+// /**
+//  	data - containing all off the game data
+//  	return value - 1 if gameOver, 0 o.w
+// */
+// int sendProperDataAfterMove(struct gameData data){
+// 	char buf[MSG_SIZE], bufToFollowingPlayer[MSG_SIZE];
+// 	int i, errorIndicator;
+// 	createGameDataBuff(data, buf);
 
-	data.isMyTurn = 1;
-	data.win = 0;
-	createGameDataBuff(data, bufToFollowingPlayer);
+// 	data.isMyTurn = 1;
+// 	data.win = 0;
+// 	createGameDataBuff(data, bufToFollowingPlayer);
 
-	if(IsBoardClear(data)){
-		// indicating that game is over
-		data.win = clientIndexTurn;
-		createGameDataBuff(data, buf);
+// 	if(IsBoardClear(data)){
+// 		// indicating that game is over
+// 		data.win = clientIndexTurn;
+// 		createGameDataBuff(data, buf);
 
-		for(i=0 ; i < conPlayers + conViewers ; i++){
-			errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
-		}
-		return 1;
-	}
-	else{
-		// advance turn 
-		clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
+// 		for(i=0 ; i < conPlayers + conViewers ; i++){
+// 			errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
+// 		}
+// 		return 1;
+// 	}
+// 	else{
+// 		// advance turn 
+// 		clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
 
-		if(data.valid){
-			// sending valid move to all players besides the next one to play
-			for(i=0 ; i < conPlayers + conViewers ; i++){
-				if(i != clientIndexTurn){
-					errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
-					if(errorIndicator<0){
-						close(ClientsQueue[i].fd);
-						delClientFromQueue(ClientsQueue[i].fd);
-					}
-				}
-			}
+// 		if(data.valid){
+// 			// sending valid move to all players besides the next one to play
+// 			for(i=0 ; i < conPlayers + conViewers ; i++){
+// 				if(i != clientIndexTurn){
+// 					errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
+// 					if(errorIndicator<0){
+// 						close(ClientsQueue[i].fd);
+// 						delClientFromQueue(ClientsQueue[i].fd);
+// 					}
+// 				}
+// 			}
 
-			// sending valid move and YOUR_TURN to next client to play
-			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, bufToFollowingPlayer, &msg_SIZE);
-			if(errorIndicator<0){
-				close(ClientsQueue[clientIndexTurn].fd);
-				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
-			}
-		}
+// 			// sending valid move and YOUR_TURN to next client to play
+// 			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, bufToFollowingPlayer, &msg_SIZE);
+// 			if(errorIndicator<0){
+// 				close(ClientsQueue[clientIndexTurn].fd);
+// 				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
+// 			}
+// 		}
 
-		else{
-			// sending invalid move only to the player which made it
-			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
-			if(errorIndicator<0){
-				close(ClientsQueue[clientIndexTurn].fd);
-				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
-			}
+// 		else{
+// 			// sending invalid move only to the player which made it
+// 			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
+// 			if(errorIndicator<0){
+// 				close(ClientsQueue[clientIndexTurn].fd);
+// 				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
+// 			}
 
-			// advance turn 
-			clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
-		}
-	}
-	return 0;
-}
+// 			// advance turn 
+// 			clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
+// 		}
+// 	}
+// 	return 0;
+// }
 
 
 
