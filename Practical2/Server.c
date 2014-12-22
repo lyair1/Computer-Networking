@@ -422,6 +422,7 @@ void notifyOnTurningToPlayer(){
 	int index;
 
 	index = conPlayers;
+	ClientsQueue[index].isPlayer = 1;
 
 	game.isMyTurn = 0;
 	game.valid=1;
@@ -799,6 +800,8 @@ int delClientFromQueue(int fd){
 	if(delClient.isPlayer){
 		conPlayers--;
 		if(conViewers>0){
+			conPlayers++;
+			conViewers--;
 			notifyOnTurningToPlayer();
 		}
 		return 1;
