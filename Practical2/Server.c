@@ -485,17 +485,14 @@ void handleIncomingMsg(struct clientMsg data,int index){
 	newGame.msg = ClientsQueue[index].clientNum;
 	newGame.playing = ClientsQueue[index].isPlayer;
 
-	strcpy(newGame.msgTxt, data.msgTxt);
+	strncpy(newGame.msgTxt, data.msgTxt, strlen(data.msgTxt));
 
 	createGameDataBuff(newGame, buf);
 
-	if(data.recp == 0){
+	if(data.recp == -1){
 		// send to all
 		for(i=0;i<conViewers+conPlayers; i++){
-			if(i != index){
-				//we don't want to send the msg to the sender
-				strcat(ClientsQueue[i].writeBuf, buf);
-			}
+			strcat(ClientsQueue[i].writeBuf, buf);
 		}
 	}
 	else if(index >0){
