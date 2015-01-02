@@ -809,6 +809,9 @@ int delClientFromQueue(int fd){
 			notifyOnTurningToPlayer();
 			conPlayers++;
 			conViewers--;
+			if(conPlayers=clientIndexTurn){
+				notifyOnTurn();
+			}
 		}
 		return 1;
 	}
