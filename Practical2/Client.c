@@ -311,7 +311,7 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 		exit(0);
 	}
 
-	if (sscanf(cmd,"MSG %d %s", &recep, msg) == 2)
+	if (sscanf(cmd,"MSG %d %1000[^\n]%*c", &recep, msg) == 2)
 	{
 		m.msg = 1;
 		m.recp = recep;
@@ -514,9 +514,19 @@ int sendAll(int s, char *buf, int *len) {
 	int oldMoveCount = game.moveCount;
 	int oldPlaying = game.playing;
 	int oldMyTurn = game.isMyTurn;
+
+	struct gameData currGame;
+	assert(14 == parseGameData(buf, &currGame));
+	if (currGame.msg != 0)
+	{
+		char txt[MSG_SIZE];
+		strncpy(txt, currGame.msgTxt, strlen(currGame.msgTxt)-2);
+		printf("%d: %s\n",currGame.msg, txt);
+		return;
+	}
+
 	assert(14 == parseGameData(buf, &game));
 	updateStaticParams();
-
 	// if (game.playing == 2 && game.valid == 1)
 	// {
 	// 	printf("D: player:%d played\n",game.myPlayerId );

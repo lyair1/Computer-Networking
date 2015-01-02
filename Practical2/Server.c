@@ -485,7 +485,7 @@ void handleIncomingMsg(struct clientMsg data,int index){
 	newGame.msg = ClientsQueue[index].clientNum;
 	newGame.playing = ClientsQueue[index].isPlayer;
 
-	strncpy(newGame.msgTxt, data.msgTxt, strlen(data.msgTxt));
+	strncpy(newGame.msgTxt, data.msgTxt, strlen(data.msgTxt)-2);
 
 	createGameDataBuff(newGame, buf);
 	printf("gamebuf is %s\n", buf);
@@ -928,7 +928,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "(%d$%d$%d$%d$%d$%s$)",
+	return sscanf(buf, "(%d$%d$%d$%d$%d$%1000[^\n]%*c$)",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
