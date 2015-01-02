@@ -346,17 +346,17 @@ int sendToClient(int index){
 
    	int n;
 	
-	printf("sending data...:%s\n",ClientsQueue[index].writeBuf);
+	//printf("sending data...:%s\n",ClientsQueue[index].writeBuf);
 	n = send(ClientsQueue[index].fd, ClientsQueue[index].writeBuf, strlen(ClientsQueue[index].writeBuf), 0);
-	printf("sent %d bytes to index: %d\n", n, index);
+	//printf("sent %d bytes to index: %d\n", n, index);
 	if(n <= 0){
 		//client disconected
 		return -1;
 	}
 	// writing succeeded. need to move move buffer head
-	printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
+	//printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
 	strcpy(ClientsQueue[index].writeBuf, ClientsQueue[index].writeBuf+n);
-	printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
+	//printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
 	return 1;
 }
 
@@ -369,14 +369,14 @@ void handleReadBuf(int index){
 	parseClientMsg(ClientsQueue[index].readBuf, &data);
 
 	if(data.msg == 1){
-		printf("Read msg from client\n");
+		//printf("Read msg from client\n");
 		handleIncomingMsg(data, index);
 	}
 	else{
 		// client sent a move
 		if(index != clientIndexTurn){
 			// it is not the client turn
-			printf("Client played out of turn");
+			//printf("Client played out of turn");
 			sendInvalidMoveToPlayer(index);
 			return;
 		}
@@ -928,7 +928,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "(%d$%d$%d$%d$%d$%1000[^\n]%*c$)",
+	return sscanf(buf, "(%d$%d$%d$%d$%d$%1000[^\0]%*c$)",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,

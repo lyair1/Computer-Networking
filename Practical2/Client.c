@@ -405,7 +405,7 @@ int sendAll(int s, char *buf, int *len) {
 			bytesleft -= n;
 	  	}
 
-	printf("D: data sent: %s\n",buf);
+	//printf("D: data sent: %s\n",buf);
 	*len = total; /* return number actually sent here */
 	  	
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
@@ -482,6 +482,7 @@ int sendAll(int s, char *buf, int *len) {
    					 ptr = NULL;
    					 continue;
    				}
+   				buf[index] = '\0';
    				handleMsg(buf);
    				buf[n] = '\0';
    				strcpy(buf, buf+index);
@@ -615,7 +616,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	int x = sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
+	int x = sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%1000[^\0]%*c$)",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
