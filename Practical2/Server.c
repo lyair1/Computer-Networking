@@ -368,9 +368,6 @@ void handleReadBuf(int index){
 	int retVal;
 	parseClientMsg(ClientsQueue[index].readBuf, &data);
 
-	// Todo: handle more than 1 read at a time!
-	strcpy(ClientsQueue[index].readBuf, "");
-
 	if(data.msg == 1){
 		printf("Read msg from client\n");
 		handleIncomingMsg(data, index);
@@ -402,7 +399,10 @@ void handleReadBuf(int index){
 	}
 
 	// deleting read data from readBuf
-	strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + CLIENT_MSG_SIZE);
+
+	const char *ptr = strchr(ClientsQueue[index].readBuf, ')');
+	int ind = ptr - ClientsQueue[index].readBuf + 1;
+	strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + ind);
 }
 
 void notifyOnTurn(){
