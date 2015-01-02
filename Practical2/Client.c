@@ -77,8 +77,6 @@ void updateStaticParams();
 
 void updateStaticParams(){
 	playing = game.playing;
-	playerId = game.myPlayerId;
-	isMisere = game.isMisere;
 	moveCount = game.moveCount;
 	myTurn = game.isMyTurn;
 }
@@ -112,21 +110,21 @@ int main(int argc, char const *argv[])
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock == -1)
 	{
-		printf( "D: Error opening the socket: %s\n", strerror( errno ) );
+		//printf( "D: Error opening the socket: %s\n", strerror( errno ) );
    	   	return errno;
 	}
-	printf("D: Succesfully got a socket number: %d\n", sock);
+	//printf("D: Succesfully got a socket number: %d\n", sock);
 
 	// Connect to server
 	sock = connectToServer(sock, address, port);
-	printf("D: socket number after connectToServer: %d\n", sock);
+	//printf("D: socket number after connectToServer: %d\n", sock);
 	/*char buf[MSG_SIZE];*/
 	/*struct clientMsg m;*/
 	// Get initial data 
-	printf("D: trying to get initial data\n");
+	//printf("D: trying to get initial data\n");
 	char readBuf[MSG_SIZE];
 	receiveAll(sock, readBuf, &MSG_SIZE,1);
-	printf("D: got initial data\n");
+	//printf("D: got initial data\n");
 	//got the initial data from the server
 	if (game.valid == 0)
 	{
@@ -135,6 +133,8 @@ int main(int argc, char const *argv[])
 	}
 
 	updateStaticParams();
+	playerId = game.myPlayerId;
+	isMisere = game.isMisere;
 
 	if (isMisere == 1)
 	{
@@ -144,9 +144,9 @@ int main(int argc, char const *argv[])
 	}
 
 	printf("Number of players is %d\n", game.numOfPlayers);
+	printf("You are client %d\n", playerId);
 	if (playing == 1)
 	{
-		 printf("You are client %d\n", playerId);
 		 printf("You are playing\n");
 	}else{
 		 printf("You are only viewing\n");
@@ -184,23 +184,23 @@ int main(int argc, char const *argv[])
 
 		if (addReadyForSend == 1)
 		{
-			printf("D: adding client to write mode\n");
+			//printf("D: adding client to write mode\n");
 			FD_SET(sock, &fdSetWrite);
 		}
 
-		printf("D: select...\n");
+		//printf("D: select...\n");
 		int fdReady = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
-		printf("D: fdready:%d\n", fdReady);
+		//printf("D: fdready:%d\n", fdReady);
 		// Print ready clients:
 
 		if(fdReady == 0){
-			printf("D: no fd ready\n");
+			//printf("D: no fd ready\n");
 			continue;
 		}
 
 		if(FD_ISSET(sock , &fdSetWrite) && addReadyForSend == 1){
 			// ready to send
-			printf("D: ready to send\n");
+			//printf("D: ready to send\n");
 			char cmb[MSG_SIZE];
 			createClientMsgBuff(cm, cmb);
 			sendAll(sock, cmb, &MSG_SIZE);
@@ -212,14 +212,14 @@ int main(int argc, char const *argv[])
 		if(FD_ISSET(STDIN , &fdSetRead)){
 			// there is input from cmd
 			fgets(readBuf,rSize,stdin);
-			printf("D: Read from STDIN:%s\n", readBuf);
+			//printf("D: Read from STDIN:%s\n", readBuf);
 
 			cm = getMoveFromInput(sock, readBuf);
 
 			if (cm.msg == 1 && playing == 1)
 			{
 				// this is message and client is not a viewer
-				printf("D: adding ready for send for client (sending msg)\n");
+				//printf("D: adding ready for send for client (sending msg)\n");
 				addReadyForSend = 1;
 			}
 
@@ -230,7 +230,7 @@ int main(int argc, char const *argv[])
 					// not my turn!
 					printf("Move rejected: this is not your turn\n");
 				}else{
-					printf("D: adding ready for send for client (sending move)\n");
+					//printf("D: adding ready for send for client (sending move)\n");
 					addReadyForSend = 1;
 				}
 			}
@@ -243,7 +243,7 @@ int main(int argc, char const *argv[])
 		//printf("D: ending loop\n");
 	}
 
-	printf("D: Exited the loop!\n");
+	//printf("D: Exited the loop!\n");
 
 	printWinner(game);
 
@@ -272,14 +272,14 @@ int connectToServer(int sock, const char* address, char* port){
         	continue;
     	}
 
-    	printf("D: trying to connect\n");
+    	//printf("D: trying to connect\n");
     	if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
       	  	//close(sock);
        	 	perror("connect");
         	continue;
     	}
 
-    	printf("D: Connected\n");
+    	//printf("D: Connected\n");
 
     	break; // if we get here, we must have connected successfully
 	}
@@ -303,9 +303,9 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 	int recep;
 	struct clientMsg m;
 	m.moveCount = game.moveCount;
-
+	
 	// Exit if user put Q
-	if (strcmp(cmd,"Q") == 0)
+	if (cmd[0] == 'Q')
 	{
 		close(sock);
 		exit(0);
@@ -377,7 +377,7 @@ void printWinner(struct gameData game)
 		return;
 	}
 
-	if (game.win == playerId)
+	if ((isMisere == 1 && game.win != playerId) || (isMisere == 0 && game.win == playerId))
 	{
 		printf("You win!\n");
 	}else
@@ -396,14 +396,16 @@ int sendAll(int s, char *buf, int *len) {
    	int n;
 	
 	while(total < *len) {
-			printf("D: sending data...\n");
+			//printf("D: sending data...\n");
 			n = send(s, buf+total, bytesleft, 0);
-			printf("D: sent %d bytes\n", n);
+			//printf("D: sent %d bytes\n", n);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
 	  	}
+
+	printf("D: data sent: %s\n",buf);
 	*len = total; /* return number actually sent here */
 	  	
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
@@ -456,11 +458,11 @@ int sendAll(int s, char *buf, int *len) {
 			if (beforeFirst == 0)
 			{
 				n = recv(s, rBuff, 500, 0);
-				printf("D: recv came back(rBuff):%s\n",rBuff );
+				//printf("D: recv came back(rBuff):%s\n",rBuff );
 				strcat(buf,rBuff);
 			}else{
 				n = recv(s, buf, bytesleft, 0);
-				printf("D: recv came back:%s\n",buf );
+				//printf("D: recv came back:%s\n",buf );
 				beforeFirst = 0;
 			}
 			//checkForZeroValue(n,s);
@@ -483,9 +485,9 @@ int sendAll(int s, char *buf, int *len) {
    				handleMsg(buf);
    				buf[n] = '\0';
    				strcpy(buf, buf+index);
-   				printf("D: read full msg\n");
+   				//printf("D: read full msg\n");
    				if(buf[0] != '('){
-   					printf("D: set end of msg to 1\n");
+   					//printf("D: set end of msg to 1\n");
    					endOfMsg = 1;
    				}
 
@@ -497,12 +499,12 @@ int sendAll(int s, char *buf, int *len) {
 			}
 	  	}
 		*len = total; /* return number actually sent here */
-	  	printf("D: finish receiving all\n");
+	  	//printf("D: finish receiving all\n");
 	 return n == -1 ? -1:0; /*-1 on failure, 0 on success */
  }
 
  void handleFirstMsg(char *buf){
- 	printf("D: handling initial msg %s\n",buf);
+ 	//printf("D: handling initial msg %s\n",buf);
  	parseGameData(buf, &game);
  }
 
@@ -511,21 +513,23 @@ int sendAll(int s, char *buf, int *len) {
  	printf("D: handling msg %s\n",buf);
 	int oldMoveCount = game.moveCount;
 	int oldPlaying = game.playing;
+	int oldMyTurn = game.isMyTurn;
 	assert(14 == parseGameData(buf, &game));
 	updateStaticParams();
-	printGameState(game);
 
-	if (game.playing == 2 && game.valid == 1)
-	{
-		printf("D: player:%d played\n",game.myPlayerId );
+	// if (game.playing == 2 && game.valid == 1)
+	// {
+	// 	printf("D: player:%d played\n",game.myPlayerId );
 		
-		return;
-	}
+	// 	return;
+	// }
 
 	if (oldPlaying == 0 && playing == 1 && game.valid == 1)
 	{
 		 // player turn to be a player
 		printf("You are now playing!\n");
+		printf("You are client %d\n", game.myPlayerId);
+		playerId = game.myPlayerId;
 
 		if (game.isMyTurn == 1)
 		{
@@ -543,12 +547,16 @@ int sendAll(int s, char *buf, int *len) {
 
 	if (oldMoveCount != game.moveCount)
 	{
-		if (game.valid == 1)
+		if (oldMyTurn == 1)
 		{
-			printf("Move accepted\n");
-		}else{
-			printf("Illegal move\n");
+			if (game.valid == 1)
+			{
+				printf("Move accepted\n");
+			}else{
+				printf("Illegal move\n");
+			}
 		}
+		
 		printGameState(game);
 	}
 
