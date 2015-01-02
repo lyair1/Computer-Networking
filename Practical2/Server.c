@@ -488,6 +488,7 @@ void handleIncomingMsg(struct clientMsg data,int index){
 	strncpy(newGame.msgTxt, data.msgTxt, strlen(data.msgTxt));
 
 	createGameDataBuff(newGame, buf);
+	printf("gamebuf is %s\n", buf);
 
 	if(data.recp == -1){
 		// send to all
