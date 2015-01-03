@@ -307,6 +307,7 @@ int sendToClient(int index){
 void handleReadBuf(int index){
 	struct clientMsg data;
 	int retVal;
+	printf("readBuf:%s\n",ClientsQueue[index].readBuf);
 	parseClientMsg(ClientsQueue[index].readBuf, &data);
 
 	if(data.msg == 1){
@@ -340,10 +341,20 @@ void handleReadBuf(int index){
 	}
 
 	// deleting read data from readBuf
-
-	const char *ptr = strchr(ClientsQueue[index].readBuf, ')');
-	int ind = ptr - ClientsQueue[index].readBuf + 1;
-	strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + ind);
+	int i;
+	for (i = 0; i < MSG_SIZE; ++i)
+	{
+		if (ClientsQueue[index].readBuf[i] == ')')
+		{
+			ClientsQueue[index].readBuf[i] = '\0'; 
+			break;
+		}
+		ClientsQueue[index].readBuf[i] = '\0'; 
+	}
+	//strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + CLIENT_MSG_SIZE);
+	// const char *ptr = strchr(ClientsQueue[index].readBuf, ')');
+	// int ind = ptr - ClientsQueue[index].readBuf + 1;
+	// strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + ind);
 }
 
 void notifyOnTurn(){
@@ -472,13 +483,19 @@ int receiveFromClient(int index){
     char temp[MSG_SIZE];
 	
 	// buf + strlen(buf) guaranties no override
-	n = recv(ClientsQueue[index].fd, ClientsQueue[index].readBuf+strlen(ClientsQueue[index].readBuf), MSG_SIZE , 0);
+	n = recv(ClientsQueue[index].fd, ClientsQueue[index].readBuf+strlen(ClientsQueue[index].readBuf), MSG_SIZE*5 , 0);
 
 	if(n <= 0){
 		//client disconected
 		return -1;
 	}
-	if(sscanf(ClientsQueue[index].readBuf,"(%s)",temp) ==1){
+
+	printf("bufer received: %s\n",ClientsQueue[index].readBuf);
+	const char* startPtr = strchr(ClientsQueue[index].readBuf, '(');
+	const char* endPtr = strchr(ClientsQueue[index].readBuf, ')');
+	//if(sscanf(ClientsQueue[index].readBuf,"(%s)",temp) ==1){
+	if (startPtr && endPtr)
+	{
 		printf("index:%d, num:%d, socket:%d, has full msg in his buffer:%s\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd,ClientsQueue[index].readBuf);
 		return 1;
 	}

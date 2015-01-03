@@ -23,7 +23,7 @@
 //Working with errno to report errors
 #include <errno.h>
 
-int MSG_SIZE=300;
+#define MSG_SIZE 300
 
 struct gameData{
 	int valid; 
@@ -123,7 +123,8 @@ int main(int argc, char const *argv[])
 	// Get initial data 
 	//printf("D: trying to get initial data\n");
 	char readBuf[MSG_SIZE];
-	receiveAll(sock, readBuf, &MSG_SIZE,1);
+	int msgSize = MSG_SIZE;
+	receiveAll(sock, readBuf, &msgSize,1);
 	//printf("D: got initial data\n");
 	//got the initial data from the server
 	if (game.valid == 0)
@@ -201,7 +202,8 @@ int main(int argc, char const *argv[])
 			//printf("D: ready to send\n");
 			char cmb[MSG_SIZE];
 			createClientMsgBuff(cm, cmb);
-			sendAll(sock, cmb, &MSG_SIZE);
+			int msg = MSG_SIZE;
+			sendAll(sock, cmb, &msg);
 			addReadyForSend = 0;
 		}
 
@@ -309,12 +311,12 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 		exit(0);
 	}
 
-	if (sscanf(cmd,"MSG %d %20[^\n]", &recep, msg) == 2)
+	if (sscanf(cmd,"MSG %d %[^\n]", &recep, msg) == 2)
 	{
 		m.msg = 1;
 		m.recp = recep;
 		strcpy(m.msgTxt, msg);
-		int index = strlen(msg) < 20 ? strlen(msg) : 20;
+		int index = strlen(msg) < 50 ? strlen(msg) : 50;
 		m.msgTxt[index] = '\0';
 		printf("got msg from stdin:%s with len:%lu\n", msg, strlen(msg));
 		return m;
@@ -390,26 +392,50 @@ void printGameState(struct gameData game){
 	printf("Heap sizes are %d,%d,%d,%d\n",game.heapA, game.heapB, game.heapC, game.heapD);
 }
 
+// int sendAll(int s, char *buf, int *len) {
+// 	int total = 0; /* how many bytes we've sent */
+// 	int bytesleft = *len; /* how many we have left to send */
+//    	int n;
+
+// 	n = send(s, buf, MSG_SIZE, 0);	
+// 	total = n;
+// 	// while(total < *len) {
+// 	// 		//printf("D: sending data...\n");
+// 	// 		n = send(s, buf+total, bytesleft, 0);
+// 	// 		//printf("D: sent %d bytes\n", n);
+// 	// 		checkForZeroValue(n,s);
+// 	// 		if (n == -1) { break; }
+// 	// 		total += n;
+// 	// 		bytesleft -= n;
+// 	//   	}
+// 	printf("Buf len:%lu, sent:%d\n",strlen(buf),total);
+// 	printf("D: data sent: %s\n",buf);
+// 	*len = total; /* return number actually sent here */
+	  
+// 	return 0;  	
+// 	//return n == -1 ? -1:0; /*-1 on failure, 0 on success */
+// }
+
 int sendAll(int s, char *buf, int *len) {
 	int total = 0; /* how many bytes we've sent */
 	int bytesleft = *len; /* how many we have left to send */
    	int n;
 	
 	while(total < *len) {
-			//printf("D: sending data...\n");
 			n = send(s, buf+total, bytesleft, 0);
-			//printf("D: sent %d bytes\n", n);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
 			bytesleft -= n;
 	  	}
-
-	//printf("D: data sent: %s\n",buf);
 	*len = total; /* return number actually sent here */
 	  	
+	printf("Buf len:%lu, sent:%d\n",strlen(buf),total);
+	printf("D: data sent: %s\n",buf);
+
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
+
 
  // int receiveAll(int s, char *buf, int *len) {
  // 	int total = 0; /* how many bytes we've received */
