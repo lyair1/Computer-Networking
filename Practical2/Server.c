@@ -346,7 +346,8 @@ void handleReadBuf(int index){
 	{
 		if (ClientsQueue[index].readBuf[i] == ')')
 		{
-			ClientsQueue[index].readBuf[i] = '\0'; 
+			ClientsQueue[index].readBuf[i] = '\0';
+			strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + i+1);
 			break;
 		}
 		ClientsQueue[index].readBuf[i] = '\0'; 

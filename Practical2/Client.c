@@ -9,7 +9,6 @@
 #include <unistd.h>
 #define STDIN 0
 
-
 // select
 #include <sys/select.h>
 //Sockets
@@ -207,10 +206,11 @@ int main(int argc, char const *argv[])
 			addReadyForSend = 0;
 		}
 
-		int rSize = MSG_SIZE;
+		
 		
 		if(FD_ISSET(STDIN , &fdSetRead)){
 			// there is input from cmd
+			int rSize = MSG_SIZE;
 			fgets(readBuf,rSize,stdin);
 			//printf("D: Read from STDIN:%s\n", readBuf);
 
@@ -238,6 +238,7 @@ int main(int argc, char const *argv[])
 
 		if(FD_ISSET(sock , &fdSetRead)){
 			char rBuf[MSG_SIZE];
+			int rSize = MSG_SIZE;
 			receiveAll(sock, rBuf, &rSize,0);
 		}
 		//printf("D: ending loop\n");
@@ -316,7 +317,7 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 		m.msg = 1;
 		m.recp = recep;
 		strcpy(m.msgTxt, msg);
-		int index = strlen(msg) < 50 ? strlen(msg) : 50;
+		int index = strlen(msg) < 150 ? strlen(msg) : 150;
 		m.msgTxt[index] = '\0';
 		//printf("got msg from stdin:%s with len:%lu\n", msg, strlen(msg));
 		return m;
@@ -431,7 +432,7 @@ int sendAll(int s, char *buf, int *len) {
 	*len = total; /* return number actually sent here */
 	  	
 	//printf("Buf len:%lu, sent:%d\n",strlen(buf),total);
-	printf("D: data sent: %s\n",buf);
+	//printf("D: data sent: %s\n",buf);
 
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
 }
@@ -511,15 +512,21 @@ int sendAll(int s, char *buf, int *len) {
    				char currBuf[MSG_SIZE];
    				strcpy(currBuf,buf);
    				currBuf[index] = '\0';
-   				printf("buf:%s\n",currBuf);
+   				//printf("buf:%s\n",currBuf);
    				handleMsg(currBuf);
-   				strcpy(buf, buf+index);
+   				//printf("1finish to handle msg\n");
+   				//printf("BUF:%s, index:%d, buf[index]:%c\n",buf,index,buf[index]);
+   				char buf2[MSG_SIZE];
+   				strcpy(buf2, buf+index);
+   				//printf("copied buf2:%s\n",buf2);
+   				strcpy(buf, buf2);
+   				//printf("2finish to handle msg\n");
    				//printf("D: read full msg\n");
    				if(buf[0] != '('){
    					//printf("D: set end of msg to 1\n");
    					endOfMsg = 1;
    				}
-
+				//printf("3finish to handle msg\n");
    				const char* startPtr = strchr(buf, '(');
    				if (!startPtr)
    				{
@@ -527,6 +534,7 @@ int sendAll(int s, char *buf, int *len) {
    					return 0;
    				}
    				ptr = strchr(buf, ')');
+   				//printf("4finish to handle msg\n");
 			}
 			if (first == 1)
 			{
@@ -598,6 +606,7 @@ int sendAll(int s, char *buf, int *len) {
 			}
 		}
 		
+		//printf("my turn? :%d\n",currGame.isMyTurn);
 		printGameState(game);
 	}
 
