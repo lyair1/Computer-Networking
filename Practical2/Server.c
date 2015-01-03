@@ -480,7 +480,7 @@ int receiveFromClient(int index){
 	// int total = 0;  how many bytes we've received 
  	// size_t bytesleft = *len;  how many we have left to receive 
     int n;
-    char temp[MSG_SIZE];
+    //char temp[MSG_SIZE];
 	
 	// buf + strlen(buf) guaranties no override
 	n = recv(ClientsQueue[index].fd, ClientsQueue[index].readBuf+strlen(ClientsQueue[index].readBuf), MSG_SIZE*5 , 0);

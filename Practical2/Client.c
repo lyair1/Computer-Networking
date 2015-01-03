@@ -318,7 +318,7 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 		strcpy(m.msgTxt, msg);
 		int index = strlen(msg) < 50 ? strlen(msg) : 50;
 		m.msgTxt[index] = '\0';
-		printf("got msg from stdin:%s with len:%lu\n", msg, strlen(msg));
+		//printf("got msg from stdin:%s with len:%lu\n", msg, strlen(msg));
 		return m;
 	}
 
@@ -430,7 +430,7 @@ int sendAll(int s, char *buf, int *len) {
 	  	}
 	*len = total; /* return number actually sent here */
 	  	
-	printf("Buf len:%lu, sent:%d\n",strlen(buf),total);
+	//printf("Buf len:%lu, sent:%d\n",strlen(buf),total);
 	printf("D: data sent: %s\n",buf);
 
 	return n == -1 ? -1:0; /*-1 on failure, 0 on success */
@@ -476,7 +476,7 @@ int sendAll(int s, char *buf, int *len) {
  	size_t bytesleft = *len; /* how many we have left to receive */
     int n;
 	int endOfMsg = 0;
-	struct gameData gd;
+	//struct gameData gd;
 	int index = 0;
 	int beforeFirst = 1;
 	while(endOfMsg == 0) {
