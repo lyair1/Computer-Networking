@@ -344,7 +344,7 @@ void handleReadBuf(int index){
 	int i;
 	for (i = 0; i < MSG_SIZE; ++i)
 	{
-		if (ClientsQueue[index].readBuf[i] == ')')
+		if (ClientsQueue[index].readBuf[i] == '}')
 		{
 			ClientsQueue[index].readBuf[i] = '\0';
 			strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + i+1);
@@ -492,9 +492,9 @@ int receiveFromClient(int index){
 	}
 
 	printf("bufer received: %s\n",ClientsQueue[index].readBuf);
-	const char* startPtr = strchr(ClientsQueue[index].readBuf, '(');
-	const char* endPtr = strchr(ClientsQueue[index].readBuf, ')');
-	//if(sscanf(ClientsQueue[index].readBuf,"(%s)",temp) ==1){
+	const char* startPtr = strchr(ClientsQueue[index].readBuf, '{');
+	const char* endPtr = strchr(ClientsQueue[index].readBuf, '}');
+	//if(sscanf(ClientsQueue[index].readBuf,"{%s}",temp) ==1){
 	if (startPtr && endPtr)
 	{
 		printf("index:%d, num:%d, socket:%d, has full msg in his buffer:%s\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd,ClientsQueue[index].readBuf);
@@ -827,7 +827,7 @@ void handleMsg(struct clientMsg clientMove,int index){
 
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%s)",
+	sprintf(buf, "{%d$%d$%d$%d$%d$%s}",
 	 data.heap,
 	 data.amount,
 	 data.msg,
@@ -837,7 +837,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "(%d$%d$%d$%d$%d$%[^)]",
+	return sscanf(buf, "{%d$%d$%d$%d$%d$%[^}]",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
@@ -847,7 +847,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	return sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%[^)]",
+	return sscanf( buf, "{%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%[^}]",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -865,7 +865,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s)",
+	sprintf(buf, "{%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s}",
 	 data.valid,
 	 data.isMyTurn,
 	 data.msg,

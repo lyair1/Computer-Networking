@@ -457,7 +457,7 @@ int sendAll(int s, char *buf, int *len) {
 	// 		printf("D: Total:%d, Len:%d ---- parseGameData():%d, buf:%s\n", total,*len,parseGameData(buf, &gd), buf);
 	// 		if (parseGameData(buf, &gd) == 14)
 	// 		{
-	// 			const char *ptr = strchr(buf, ')');
+	// 			const char *ptr = strchr(buf, '}');
 	// 			if(ptr) {
 	// 				// remove the first msg
  //   					int index = ptr - buf;
@@ -497,7 +497,7 @@ int sendAll(int s, char *buf, int *len) {
 			total += n;
 			bytesleft -= n;
 		
-			const char *ptr = strchr(buf, ')');
+			const char *ptr = strchr(buf, '}');
 			while(ptr) {
 				// remove the first msg
    				index = ptr - buf + 1;
@@ -522,18 +522,18 @@ int sendAll(int s, char *buf, int *len) {
    				strcpy(buf, buf2);
    				//printf("2finish to handle msg\n");
    				//printf("D: read full msg\n");
-   				if(buf[0] != '('){
+   				if(buf[0] != '{'){
    					//printf("D: set end of msg to 1\n");
    					endOfMsg = 1;
    				}
 				//printf("3finish to handle msg\n");
-   				const char* startPtr = strchr(buf, '(');
+   				const char* startPtr = strchr(buf, '{');
    				if (!startPtr)
    				{
    					buf[0] = '\0';
    					return 0;
    				}
-   				ptr = strchr(buf, ')');
+   				ptr = strchr(buf, '}');
    				//printf("4finish to handle msg\n");
 			}
 			if (first == 1)
@@ -641,7 +641,7 @@ void checkForNegativeValue(int num, char* func, int sock){
 }
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%s)",
+	sprintf(buf, "{%d$%d$%d$%d$%d$%s}",
 	 data.heap,
 	 data.amount,
 	 data.msg,
@@ -651,7 +651,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "(%d$%d$%d$%d$%d$%[^)]",
+	return sscanf(buf, "{%d$%d$%d$%d$%d$%[^}]",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
@@ -661,7 +661,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	int x = sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%[^)]",
+	int x = sscanf( buf, "{%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%[^}]",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -681,7 +681,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s)",
+	sprintf(buf, "{%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s}",
 	 data.valid,
 	 data.isMyTurn,
 	 data.msg,
