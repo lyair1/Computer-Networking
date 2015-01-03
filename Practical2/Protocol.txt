@@ -3,6 +3,33 @@ Protocol:
 Server -----'GameData'----> Client
 Server <----'ClientMsg'-----Client
 
+struct gameData{
+	int valid; 
+	int msg; // <sender Id> - this is a message, (-1) - send to all - (0) this is not a msg
+	int isMyTurn; // 0 - no, 1 - yes
+	int win; // 0 - no one, <player id> - the player id who won
+	int numOfPlayers; // p - then number of players the server allows to play
+	int myPlayerId; // player id (0 - p-1), if i dont play: -1
+	int playing; // 0 - viewing, 1 - playing
+	int isMisere;
+	int heapA;
+	int heapB;
+	int heapC;
+	int heapD;
+	int moveCount; /* amount of moves that were made*/
+	char msgTxt[100];
+};
+
+struct clientMsg{
+	int heap;
+	int amount;
+	int msg; // 1 - this is a message, 0 - this is a move
+	int recp; // player id to send the message to (0 - p-1)
+	int moveCount; // amount of move that were made
+	char msgTxt[100];
+};
+
+
 Scenarios:
 
 ****************************
@@ -50,7 +77,7 @@ Server Response to client msg:
 
 		Server Response:
 
-			if the msg is valid (the recp is a valid player id, or 0 for 'send to all') the server sends 'GameData' obj to the right client with:
+			if the msg is valid (the recp is a valid player id, or -1 for 'send to all') the server sends 'GameData' obj to the right client with:
 
 			valid = 1
 			msg = <sender player index>
@@ -67,7 +94,7 @@ Server notify viewer client that he turns to be a player
 		valid = 1
 		playing = 1
 
-		other params will be ignored
+		all other parameters needs to be sent too
 
 ****************************
 Server notify viewer client that it is his turn

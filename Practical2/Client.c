@@ -175,11 +175,9 @@ int main(int argc, char const *argv[])
 
 		FD_ZERO(&fdSetRead);
 		FD_ZERO(&fdSetWrite);
-		if (playing == 1)
-		{
-			// not only a viewer - adding cmd input
-			FD_SET(STDIN, &fdSetRead);
-		}
+
+		// not only a viewer - adding cmd input
+		FD_SET(STDIN, &fdSetRead);
 		FD_SET(sock, &fdSetRead);
 
 		if (addReadyForSend == 1)
@@ -216,7 +214,7 @@ int main(int argc, char const *argv[])
 
 			cm = getMoveFromInput(sock, readBuf);
 
-			if (cm.msg == 1 && playing == 1)
+			if (cm.msg == 1)
 			{
 				// this is message and client is not a viewer
 				//printf("D: adding ready for send for client (sending msg)\n");
@@ -311,12 +309,14 @@ struct clientMsg getMoveFromInput(int sock, char* cmd){
 		exit(0);
 	}
 
-	if (sscanf(cmd,"MSG %d %1000[^\n]%*c", &recep, msg) == 2)
+	if (sscanf(cmd,"MSG %d %20[^\n]", &recep, msg) == 2)
 	{
 		m.msg = 1;
 		m.recp = recep;
 		strcpy(m.msgTxt, msg);
-
+		int index = strlen(msg) < 20 ? strlen(msg) : 20;
+		m.msgTxt[index] = '\0';
+		printf("got msg from stdin:%s with len:%lu\n", msg, strlen(msg));
 		return m;
 	}
 
@@ -482,9 +482,11 @@ int sendAll(int s, char *buf, int *len) {
    					 ptr = NULL;
    					 continue;
    				}
-   				buf[index] = '\0';
-   				handleMsg(buf);
-   				buf[n] = '\0';
+   				char currBuf[MSG_SIZE];
+   				strcpy(currBuf,buf);
+   				currBuf[index] = '\0';
+   				printf("buf:%s\n",currBuf);
+   				handleMsg(currBuf);
    				strcpy(buf, buf+index);
    				//printf("D: read full msg\n");
    				if(buf[0] != '('){
@@ -492,6 +494,12 @@ int sendAll(int s, char *buf, int *len) {
    					endOfMsg = 1;
    				}
 
+   				const char* startPtr = strchr(buf, '(');
+   				if (!startPtr)
+   				{
+   					buf[0] = '\0';
+   					return 0;
+   				}
    				ptr = strchr(buf, ')');
 			}
 			if (first == 1)
@@ -511,38 +519,37 @@ int sendAll(int s, char *buf, int *len) {
 
  void handleMsg(char *buf)
  {
- 	printf("D: handling msg %s\n",buf);
+ 	//printf("D: handling msg %s\n",buf);
 	int oldMoveCount = game.moveCount;
 	int oldPlaying = game.playing;
 	int oldMyTurn = game.isMyTurn;
 
 	struct gameData currGame;
-	assert(14 == parseGameData(buf, &currGame));
+	assert(13 <= parseGameData(buf, &currGame));
 	if (currGame.msg != 0)
 	{
 		char txt[MSG_SIZE];
-		strncpy(txt, currGame.msgTxt, strlen(currGame.msgTxt)-2);
+		strncpy(txt, currGame.msgTxt, strlen(currGame.msgTxt));
+		txt[strlen(currGame.msgTxt)] = '\0';
 		printf("%d: %s\n",currGame.msg, txt);
 		return;
 	}
 
-	assert(14 == parseGameData(buf, &game));
-	updateStaticParams();
 	// if (game.playing == 2 && game.valid == 1)
 	// {
 	// 	printf("D: player:%d played\n",game.myPlayerId );
 		
 	// 	return;
 	// }
+	assert(13 <= parseGameData(buf, &game));
+	updateStaticParams();
 
-	if (oldPlaying == 0 && playing == 1 && game.valid == 1)
+	if (oldPlaying == 0 && currGame.playing == 1 && currGame.valid == 1)
 	{
 		 // player turn to be a player
 		printf("You are now playing!\n");
-		printf("You are client %d\n", game.myPlayerId);
-		playerId = game.myPlayerId;
-
-		if (game.isMyTurn == 1)
+		playing = 1;
+		if (currGame.isMyTurn == 1)
 		{
 			printf("Your turn:\n");
 		}
@@ -550,14 +557,11 @@ int sendAll(int s, char *buf, int *len) {
 		return;
 	}
 
-	// change from viewer to playing
-	if (playing == 0 && game.playing == 1 && game.valid == 1)
+	if (oldMoveCount != currGame.moveCount)
 	{
-		playing = 1;
-	}
+		// assert(13 <= parseGameData(buf, &game));
+		// updateStaticParams();
 
-	if (oldMoveCount != game.moveCount)
-	{
 		if (oldMyTurn == 1)
 		{
 			if (game.valid == 1)
@@ -570,6 +574,12 @@ int sendAll(int s, char *buf, int *len) {
 		
 		printGameState(game);
 	}
+
+	// if (oldMyTurn != currGame.isMyTurn)
+	// {
+	// 	assert(13 <= parseGameData(buf, &game));
+	// 	updateStaticParams();
+	// }
 
 	if (myTurn == 1)
 	{	
@@ -596,7 +606,7 @@ void checkForNegativeValue(int num, char* func, int sock){
 }
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%s$)",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%s)",
 	 data.heap,
 	 data.amount,
 	 data.msg,
@@ -606,7 +616,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "(%d$%d$%d$%d$%d$%s$)",
+	return sscanf(buf, "(%d$%d$%d$%d$%d$%[^)]",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
@@ -616,7 +626,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	int x = sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%1000[^\0]%*c$)",
+	int x = sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%[^)]",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -636,7 +646,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s)",
 	 data.valid,
 	 data.isMyTurn,
 	 data.msg,

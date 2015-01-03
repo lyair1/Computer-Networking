@@ -23,7 +23,6 @@
 
 #define MSG_SIZE 300
 int msg_SIZE = 300;
-#define CLIENT_MSG_SIZE 20
 
 struct gameData{
 	int valid; 
@@ -39,7 +38,7 @@ struct gameData{
 	int heapC;
 	int heapD;
 	int moveCount; // amount of moves that were made
-	char msgTxt[MSG_SIZE - 100]; // TODO: unknown error with 'MSG_SIZE - 100' while compiling
+	char msgTxt[100]; // TODO: unknown error with 'MSG_SIZE - 100' while compiling
 };
 
 struct clientMsg{
@@ -48,7 +47,7 @@ struct clientMsg{
 	int msg; // 1 - this is a message, 0 - this is a move
 	int recp; // player id to send the message to (0 - p-1)
 	int moveCount; // amount of move that were made
-	char msgTxt[MSG_SIZE - 100]; // TODO: unknown error with 'MSG_SIZE - 100' while compiling
+	char msgTxt[100]; // TODO: unknown error with 'MSG_SIZE - 100' while compiling
 };
 
 struct clientData{
@@ -277,64 +276,6 @@ int main(int argc, char** argv){
 	      		}
 	      	}
       }
-        
-
-
-
-		// if (fdReady < 0)
-		// {
-		// 	printf("fdready < 0\n");
-		// }
-		// if(fdReady == 0){
-		// 	printf("fdready == 0\n");
-		// 	exit(0);
-		// 	continue;
-		// }
-
-		// // handling messages first
-		// for(i=0 ; i< conViewers + conPlayers ; i++){
-		// 	printf("in loop\n");
-		// 	if(FD_ISSET(ClientsQueue[i].fd , &fdSetRead)){
-		// 		printf("ready for read msg\n");
-		// 		exit(0);
-		// 		if((i != clientIndexTurn) && (ClientsQueue[i].fd != sockListen)){
-		// 			// Client is ready to send data.
-		// 			// it is not the client turn & it's not the listner
-		// 			// hence, only message is legal
-		// 			errorIndicator = receiveAll(ClientsQueue[i].fd, buf, &msg_SIZE);
-		// 			if(errorIndicator < 0){
-		// 				close(ClientsQueue[i].fd);
-		// 				delClientFromQueue(ClientsQueue[i].fd);
-		// 				//updateClientsOnChange(ClientsQueue[i].clientNum, 0);
-		// 			}
-		// 			else{
-		// 				parseClientMsg(buf, &clientMove);
-		// 				handleMsg(clientMove, i);
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-		// // handling move by client
-		// if(FD_ISSET(ClientsQueue[clientIndexTurn].fd , &fdSetRead)){
-		// 	printf("ready for read move \n");
-		// 	exit(0);
-		// 	// Client with turn is ready to send data.
-		// 	// TODO: what if he sends a message? 
-		// 	errorIndicator = receiveAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
-		// 	if(errorIndicator < 0){
-		// 		close(ClientsQueue[i].fd);
-		// 		delClientFromQueue(ClientsQueue[i].fd);
-		// 	}
-		// 	else{
-		// 		parseClientMsg(buf, &clientMove);
-		// 		CheckAndMakeClientMove(&game, clientMove);
-		// 		if(sendProperDataAfterMove(game)){
-		// 			//game over
-		// 			exit(1);
-		// 		}
-		// 	}
-		// }
 	}
 }
 
@@ -354,9 +295,9 @@ int sendToClient(int index){
 		return -1;
 	}
 	// writing succeeded. need to move move buffer head
-	//printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
+	printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
 	strcpy(ClientsQueue[index].writeBuf, ClientsQueue[index].writeBuf+n);
-	//printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
+	printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
 	return 1;
 }
 
@@ -412,8 +353,19 @@ void notifyOnTurn(){
 	newGame.isMyTurn =1;
 	newGame.valid=1;
 	newGame.playing=1;
+	newGame.msg = 0;
+	newGame.win = game.win;
+	newGame.numOfPlayers = game.numOfPlayers;
+	newGame.isMisere = game.isMisere;
+	newGame.heapA = game.heapA;
+	newGame.heapB = game.heapB;
+	newGame.heapC = game.heapC;
+	newGame.heapD = game.heapD;
+	game.moveCount++;
+	newGame.moveCount = game.moveCount;
 
 	createGameDataBuff(newGame, buf);
+	printf("buf:%s\n",buf );
 	strcat(ClientsQueue[clientIndexTurn].writeBuf, buf);
 }
 
@@ -485,7 +437,8 @@ void handleIncomingMsg(struct clientMsg data,int index){
 	newGame.msg = ClientsQueue[index].clientNum;
 	newGame.playing = ClientsQueue[index].isPlayer;
 
-	strncpy(newGame.msgTxt, data.msgTxt, strlen(data.msgTxt)-2);
+	strncpy(newGame.msgTxt, data.msgTxt, strlen(data.msgTxt));
+	newGame.msgTxt[strlen(data.msgTxt)] = '\0';
 
 	createGameDataBuff(newGame, buf);
 	printf("gamebuf is %s\n", buf);
@@ -496,7 +449,7 @@ void handleIncomingMsg(struct clientMsg data,int index){
 			strcat(ClientsQueue[i].writeBuf, buf);
 		}
 	}
-	else if(index >0){
+	else{
 		//sent to specific client. we will search for him
 		for(i=0;i<conViewers+conPlayers; i++)
 			if(ClientsQueue[i].clientNum == data.recp){
@@ -556,7 +509,7 @@ void SendCantConnectToClient(int fd){
 	struct gameData newGame;
 
 	// -1 stands for too many clients connected
-	newGame.valid =-1;
+	newGame.valid =0;
 	createGameDataBuff(newGame, buf);
 
 	errorIndicator = sendAll(fd, buf, &msg_SIZE);
@@ -807,7 +760,8 @@ int delClientFromQueue(int fd){
 			notifyOnTurningToPlayer();
 			conPlayers++;
 			conViewers--;
-			if(conPlayers==clientIndexTurn){
+			if(conPlayers-1==clientIndexTurn){
+				printf("notifyOnTurn\n");
 				notifyOnTurn();
 			}
 		}
@@ -818,69 +772,6 @@ int delClientFromQueue(int fd){
 		return 0;
 	}
 }
-
-
-// /**
-//  	data - containing all off the game data
-//  	return value - 1 if gameOver, 0 o.w
-// */
-// int sendProperDataAfterMove(struct gameData data){
-// 	char buf[MSG_SIZE], bufToFollowingPlayer[MSG_SIZE];
-// 	int i, errorIndicator;
-// 	createGameDataBuff(data, buf);
-
-// 	data.isMyTurn = 1;
-// 	data.win = 0;
-// 	createGameDataBuff(data, bufToFollowingPlayer);
-
-// 	if(IsBoardClear(data)){
-// 		// indicating that game is over
-// 		data.win = clientIndexTurn;
-// 		createGameDataBuff(data, buf);
-
-// 		for(i=0 ; i < conPlayers + conViewers ; i++){
-// 			errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
-// 		}
-// 		return 1;
-// 	}
-// 	else{
-// 		// advance turn 
-// 		clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
-
-// 		if(data.valid){
-// 			// sending valid move to all players besides the next one to play
-// 			for(i=0 ; i < conPlayers + conViewers ; i++){
-// 				if(i != clientIndexTurn){
-// 					errorIndicator = sendAll(ClientsQueue[i].fd, buf, &msg_SIZE);
-// 					if(errorIndicator<0){
-// 						close(ClientsQueue[i].fd);
-// 						delClientFromQueue(ClientsQueue[i].fd);
-// 					}
-// 				}
-// 			}
-
-// 			// sending valid move and YOUR_TURN to next client to play
-// 			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, bufToFollowingPlayer, &msg_SIZE);
-// 			if(errorIndicator<0){
-// 				close(ClientsQueue[clientIndexTurn].fd);
-// 				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
-// 			}
-// 		}
-
-// 		else{
-// 			// sending invalid move only to the player which made it
-// 			errorIndicator = sendAll(ClientsQueue[clientIndexTurn].fd, buf, &msg_SIZE);
-// 			if(errorIndicator<0){
-// 				close(ClientsQueue[clientIndexTurn].fd);
-// 				delClientFromQueue(ClientsQueue[clientIndexTurn].fd);
-// 			}
-
-// 			// advance turn 
-// 			clientIndexTurn = (clientIndexTurn + 1) % (conViewers + conPlayers);
-// 		}
-// 	}
-// 	return 0;
-// }
 
 
 
@@ -918,7 +809,7 @@ void handleMsg(struct clientMsg clientMove,int index){
 
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%s$)",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%s)",
 	 data.heap,
 	 data.amount,
 	 data.msg,
@@ -928,7 +819,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseClientMsg(char buf[MSG_SIZE], struct clientMsg *data){
-	return sscanf(buf, "(%d$%d$%d$%d$%d$%1000[^\0]%*c$)",
+	return sscanf(buf, "(%d$%d$%d$%d$%d$%[^)]",
 	 &data->heap,
 	 &data->amount,
 	 &data->msg,
@@ -938,7 +829,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
  int parseGameData(char buf[MSG_SIZE], struct gameData* data){
-	return sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
+	return sscanf( buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%[^)]",
 	 &data->valid,
 	 &data->isMyTurn,
 	 &data->msg,
@@ -956,7 +847,7 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
-	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s$)",
+	sprintf(buf, "(%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s)",
 	 data.valid,
 	 data.isMyTurn,
 	 data.msg,
