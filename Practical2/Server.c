@@ -116,14 +116,14 @@ int sendToClient(int index);
 
 void PRINT_Debug(char* msg){
 	if(DEBUG){
-		printf("%s\n",msg);
+		//printf("%s\n",msg);
 	}
 }
 
 int main(int argc, char** argv){
 	int sockListen, errorIndicator;
 	int maxClientFd;
-	int i, fdready;
+	int i;
 	struct sockaddr_in myaddr;
 	struct sockaddr addrBind;
 	struct in_addr inAddr;
@@ -137,13 +137,13 @@ int main(int argc, char** argv){
 	/*Region input Check*/
 
 	if(argc<=3 || argc>=6){
-		printf("Illegal arguments\n");
+		//printf("Illegal arguments\n");
 		exit(1);
 	}
 
 	sscanf(argv[1],"%d",&p);
 
-	/*printf("argv[1] %s\n", argv[2]);*/
+	/*//printf("argv[1] %s\n", argv[2]);*/
 	sscanf(argv[2],"%d",&M);
 
 	if( strcmp(argv[3],"0") ==0 ){
@@ -153,7 +153,7 @@ int main(int argc, char** argv){
 		game.isMisere=1;
 	}
 	else{
-		printf("Illegal arguments. Misere should be 0/1\n");
+		//printf("Illegal arguments. Misere should be 0/1\n");
 		exit(1);
 	}
 
@@ -175,13 +175,13 @@ int main(int argc, char** argv){
 	game.moveCount = 0;
 
 	
-	/*printf("Set all arguments, start server\n");*/
+	/*//printf("Set all arguments, start server\n");*/
 
 	// Set listner. accepting only in main loop
 
 	sockListen = socket(AF_INET, SOCK_STREAM, 0);
 	checkForNegativeValue(sockListen, "socket", sockListen);
-	/*printf("Succesfully got a socket number: %d\n", sockListen);*/
+	/*//printf("Succesfully got a socket number: %d\n", sockListen);*/
 	addrBind.sa_family = AF_INET;
 	myaddr.sin_family = AF_INET;
 	myaddr.sin_port = htons(port);
@@ -189,11 +189,11 @@ int main(int argc, char** argv){
 	myaddr.sin_addr = inAddr;
 	errorIndicator=myBind(sockListen, &myaddr, sizeof(addrBind));
 	checkForNegativeValue(errorIndicator, "bind", sockListen);
-	/*printf("Succesfully binded %d\n", sock);*/
+	/*//printf("Succesfully binded %d\n", sock);*/
 
 	errorIndicator=listen(sockListen, 9);
 	checkForNegativeValue(errorIndicator, "listen", sockListen);
-	/*printf("Succesfully started listening: %d\n", sock);*/
+	/*//printf("Succesfully started listening: %d\n", sock);*/
 	
 	while(1){
 		// clear set and add listner
@@ -202,49 +202,49 @@ int main(int argc, char** argv){
 		FD_ZERO(&fdSetRead);
 		FD_ZERO(&fdSetWrite);
 		FD_SET(sockListen, &fdSetRead);
-		printf("listening socket is:%d\n",sockListen);
+		//printf("listening socket is:%d\n",sockListen);
 
 		// add all clients to fdSetRead
-		printf("clients to add. players:%d, viewers:%d\n",conPlayers,conViewers);
+		//printf("clients to add. players:%d, viewers:%d\n",conPlayers,conViewers);
 		for(i=0 ; i< conViewers + conPlayers ; i++){
-			printf("Adding fd:%d to read\n",ClientsQueue[i].fd);
+			//printf("Adding fd:%d to read\n",ClientsQueue[i].fd);
 			FD_SET(ClientsQueue[i].fd, &fdSetRead);
 			if(strlen(ClientsQueue[i].writeBuf) > 0){
-				printf("Adding fd:%d to write\n",ClientsQueue[i].fd);
+				//printf("Adding fd:%d to write\n",ClientsQueue[i].fd);
 				FD_SET(ClientsQueue[i].fd, &fdSetWrite);
 			}
 			else{
-				printf("ClientsQueue[i].writeBuf = %s\n",ClientsQueue[i].writeBuf);
+				//printf("ClientsQueue[i].writeBuf = %s\n",ClientsQueue[i].writeBuf);
 			}
 			if(ClientsQueue[i].fd > maxClientFd) { maxClientFd = ClientsQueue[i].fd; }
 		}
 
 		// TODO: need to add timeout
-		printf("Select...\n");
-		fdready = select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
-		printf("Exit select...fdReady = %d\n",fdready);
+		//printf("Select...\n");
+		select(maxClientFd+1, &fdSetRead, &fdSetWrite, NULL, NULL);
+		//printf("Exit select...fdReady = %d\n",fdready);
 
-		// printf("%s...\n",strerror(errno));
+		// //printf("%s...\n",strerror(errno));
 		if (FD_ISSET (sockListen, &fdSetRead))
       		{
-      			 printf("Reading from sock listen\n");
+      			 //printf("Reading from sock listen\n");
       			 int fdCurr = accept(sockListen, (struct sockaddr*)NULL, NULL );
       			 checkForNegativeValue(fdCurr, "accept", fdCurr);
 
 				 if(fdCurr >= 0){
-				 	printf("Got a valid FD after accept, fd:%d\n",fdCurr);
+				 	//printf("Got a valid FD after accept, fd:%d\n",fdCurr);
 				 	if( (conViewers + conPlayers) == 9){
 					// too much connected clients. sending "can't connect" to client
 					SendCantConnectToClient(fdCurr);
 					}
 					else if(conPlayers == p){
 						// max amount of players. new client is a viewer
-						printf("new client is a viewer: fd:%d\n",fdCurr);
+						//printf("new client is a viewer: fd:%d\n",fdCurr);
 						addClientToQueue(fdCurr, 0);
 					}
 					else{
 						// new client is a player
-						printf("new client is a player: fd:%d\n",fdCurr);
+						//printf("new client is a player: fd:%d\n",fdCurr);
 						addClientToQueue(fdCurr, 1);
 					}
 				 }
@@ -252,23 +252,23 @@ int main(int argc, char** argv){
 
 		/* Service all the sockets with input pending. */
      	for (i = 0; i < conPlayers+conViewers; ++i){
-     		printf("checking: i=%d, fd=%d\n", i, ClientsQueue[i].fd);
+     		//printf("checking: i=%d, fd=%d\n", i, ClientsQueue[i].fd);
 	      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetRead)){
-	      		printf("sock %d is ready for read\n", ClientsQueue[i].fd);
+	      		//printf("sock %d is ready for read\n", ClientsQueue[i].fd);
 	      		errorIndicator = receiveFromClient(i);
 	      		if(errorIndicator < 0){
 	 				close(ClientsQueue[i].fd);
 					delClientFromQueue(ClientsQueue[i].fd);
 	 			}
 	 			else if(errorIndicator == 1){
-	 				printf("handling received data\n"); 
+	 				//printf("handling received data\n"); 
 	 				handleReadBuf(i);
 	 			}
 
 	      	}
 
 	      	if (FD_ISSET (ClientsQueue[i].fd, &fdSetWrite)){
-	      		printf("sock %d is ready for write\n", ClientsQueue[i].fd);
+	      		//printf("sock %d is ready for write\n", ClientsQueue[i].fd);
 	      		errorIndicator = sendToClient(i);
 	      		if(errorIndicator < 0){
 					close(ClientsQueue[i].fd);
@@ -287,17 +287,17 @@ int sendToClient(int index){
 
    	int n;
 	
-	//printf("sending data...:%s\n",ClientsQueue[index].writeBuf);
+	////printf("sending data...:%s\n",ClientsQueue[index].writeBuf);
 	n = send(ClientsQueue[index].fd, ClientsQueue[index].writeBuf, strlen(ClientsQueue[index].writeBuf), 0);
-	//printf("sent %d bytes to index: %d\n", n, index);
+	////printf("sent %d bytes to index: %d\n", n, index);
 	if(n <= 0){
 		//client disconected
 		return -1;
 	}
 	// writing succeeded. need to move move buffer head
-	printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
+	//printf("writeBuf before moving head:%s\n", ClientsQueue[index].writeBuf);
 	strcpy(ClientsQueue[index].writeBuf, ClientsQueue[index].writeBuf+n);
-	printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
+	//printf("writeBuf after moving head:%s\n", ClientsQueue[index].writeBuf);
 	return 1;
 }
 
@@ -307,18 +307,18 @@ int sendToClient(int index){
 void handleReadBuf(int index){
 	struct clientMsg data;
 	int retVal;
-	printf("readBuf:%s\n",ClientsQueue[index].readBuf);
+	//printf("readBuf:%s\n",ClientsQueue[index].readBuf);
 	parseClientMsg(ClientsQueue[index].readBuf, &data);
 
 	if(data.msg == 1){
-		//printf("Read msg from client\n");
+		////printf("Read msg from client\n");
 		handleIncomingMsg(data, index);
 	}
 	else{
 		// client sent a move
 		if(index != clientIndexTurn){
 			// it is not the client turn
-			//printf("Client played out of turn");
+			////printf("Client played out of turn");
 			sendInvalidMoveToPlayer(index);
 			return;
 		}
@@ -326,13 +326,13 @@ void handleReadBuf(int index){
 		retVal = CheckAndMakeClientMove(data);
 		clientIndexTurn = (clientIndexTurn+1) % (conPlayers); // keep the turn moving only between connected players
 		if(retVal ==-1){
-			printf("invalid client move\n");
+			//printf("invalid client move\n");
 			sendInvalidMoveToPlayer(index);
 			updateEveryoneOnMoveExceptIndex(index);
 			notifyOnTurn();
 		}
 		else{
-			printf("valid client move\n");
+			//printf("valid client move\n");
 			updateEveryoneOnMove(index);
 			if(retVal==0) {
 				notifyOnTurn();
@@ -347,8 +347,12 @@ void handleReadBuf(int index){
 		if (ClientsQueue[index].readBuf[i] == '}')
 		{
 			ClientsQueue[index].readBuf[i] = '\0';
-			strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + i+1);
-			break;
+			if (ClientsQueue[index].readBuf[i+1] == '{')
+			{
+				//printf("in the if\n");
+				strcpy(ClientsQueue[index].readBuf, ClientsQueue[index].readBuf + i+1);
+				break;
+			}
 		}
 		ClientsQueue[index].readBuf[i] = '\0'; 
 	}
@@ -377,7 +381,7 @@ void notifyOnTurn(){
 	newGame.moveCount = game.moveCount;
 
 	createGameDataBuff(newGame, buf);
-	printf("buf:%s\n",buf );
+	//printf("buf:%s\n",buf );
 	strcat(ClientsQueue[clientIndexTurn].writeBuf, buf);
 }
 
@@ -453,7 +457,7 @@ void handleIncomingMsg(struct clientMsg data,int index){
 	newGame.msgTxt[strlen(data.msgTxt)] = '\0';
 
 	createGameDataBuff(newGame, buf);
-	printf("gamebuf is %s\n", buf);
+	//printf("gamebuf is %s\n", buf);
 
 	if(data.recp == -1){
 		// send to all
@@ -484,20 +488,26 @@ int receiveFromClient(int index){
     //char temp[MSG_SIZE];
 	
 	// buf + strlen(buf) guaranties no override
-	n = recv(ClientsQueue[index].fd, ClientsQueue[index].readBuf+strlen(ClientsQueue[index].readBuf), MSG_SIZE*5 , 0);
+	////printf("on receive len:%lu\n", strlen(ClientsQueue[index].readBuf));
+	int len = strlen(ClientsQueue[index].readBuf);
+	if (strlen(ClientsQueue[index].readBuf) < 10)
+	{
+		len = 0;
+	}
+	n = recv(ClientsQueue[index].fd, ClientsQueue[index].readBuf+len, MSG_SIZE*5 , 0);
 
 	if(n <= 0){
 		//client disconected
 		return -1;
 	}
 
-	printf("bufer received: %s\n",ClientsQueue[index].readBuf);
+	////printf("bufer received: %s\n",ClientsQueue[index].readBuf);
 	const char* startPtr = strchr(ClientsQueue[index].readBuf, '{');
 	const char* endPtr = strchr(ClientsQueue[index].readBuf, '}');
 	//if(sscanf(ClientsQueue[index].readBuf,"{%s}",temp) ==1){
 	if (startPtr && endPtr)
 	{
-		printf("index:%d, num:%d, socket:%d, has full msg in his buffer:%s\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd,ClientsQueue[index].readBuf);
+		//printf("index:%d, num:%d, socket:%d, has full msg in his buffer:%s\n",index,ClientsQueue[index].clientNum,ClientsQueue[index].fd,ClientsQueue[index].readBuf);
 		return 1;
 	}
 	return 0;
@@ -543,7 +553,7 @@ void SendCantConnectToClient(int fd){
 				0 valid move, nobody won
 **/
 int CheckAndMakeClientMove(struct clientMsg clientMove){
-	printf("checking move for heap:%d, count:%d\n",clientMove.heap, clientMove.amount);
+	//printf("checking move for heap:%d, count:%d\n",clientMove.heap, clientMove.amount);
 	// move count is allways increased if a player played on his turn
 	game.moveCount++;
 	if(clientMove.heap<0 || clientMove.heap>3){
@@ -612,7 +622,7 @@ int CheckAndMakeClientMove(struct clientMsg clientMove){
 
 void checkForNegativeValue(int num, char* func, int sock){
 	if(num<0){
-		printf( "Error: %s. func:%s", strerror(errno),func );
+		//printf( "Error: %s. func:%s", strerror(errno),func );
 		close(sock);
 	}
 }
@@ -653,9 +663,9 @@ int sendAll(int s, char *buf, int *len) {
    	int n;
 	
 	while(total < *len) {
-			printf("D: sending data...\n");
+			//printf("D: sending data...\n");
 			n = send(s, buf+total, bytesleft, 0);
-			printf("D: sent %d bytes\n", n);
+			//printf("D: sent %d bytes\n", n);
 			checkForZeroValue(n,s);
 			if (n == -1) { break; }
 			total += n;
@@ -668,7 +678,7 @@ int sendAll(int s, char *buf, int *len) {
 
  void checkForZeroValue(int num, int sock){
 	if(num==0){
-		printf( "Disconnected from server\n");
+		//printf( "Disconnected from server\n");
 		close(sock);
 		exit(1);
 	}
@@ -741,12 +751,12 @@ int delClientFromQueue(int fd){
 	int i,j;
 	struct clientData delClient;
 
-	printf("in delClientFromQueue. clientIndexTurn=%d\n",clientIndexTurn);
+	//printf("in delClientFromQueue. clientIndexTurn=%d\n",clientIndexTurn);
 	/* find and copy deleted client*/
 	for(i=0; i< conViewers+conPlayers; i++){
 		if(ClientsQueue[i].fd == fd){
 			delClient = ClientsQueue[i];
-			printf("in for loop. found deleted index=%d\n",i);
+			//printf("in for loop. found deleted index=%d\n",i);
 			break;
 		}
 	}
@@ -754,17 +764,17 @@ int delClientFromQueue(int fd){
 	/* move clients after deleted client to the left*/
 	for(; j< conViewers+conPlayers - 1; j++){
 		ClientsQueue[j] = ClientsQueue[j+1];
-		printf("copying to %d\n",j);
+		//printf("copying to %d\n",j);
 	}
 	
 	/* preserve global turn*/
 	if(i < clientIndexTurn){
 		clientIndexTurn--;
-		printf("decreasing clientIndexTurn\n");
+		//printf("decreasing clientIndexTurn\n");
 	}
 	else if(i == clientIndexTurn && (ClientsQueue[i].isPlayer) ){
 		notifyOnTurn();
-		printf("notifyOnTurn\n");
+		//printf("notifyOnTurn\n");
 	}
 
 	/* update globals */
@@ -779,7 +789,7 @@ int delClientFromQueue(int fd){
 			conPlayers++;
 			conViewers--;
 			if(conPlayers-1==clientIndexTurn){
-				printf("notifyOnTurn\n");
+				//printf("notifyOnTurn\n");
 				notifyOnTurn();
 			}
 		}
@@ -827,6 +837,11 @@ void handleMsg(struct clientMsg clientMove,int index){
 
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
+	if (data.msg == 0)
+	{
+		data.msgTxt[0] ='a';
+		data.msgTxt[1] = '\0';
+	}
 	sprintf(buf, "{%d$%d$%d$%d$%d$%s}",
 	 data.heap,
 	 data.amount,
@@ -865,6 +880,11 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
+	if (data.msg == 0)
+	{
+		data.msgTxt[0] ='a';
+		data.msgTxt[1] = '\0';
+	}
 	sprintf(buf, "{%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s}",
 	 data.valid,
 	 data.isMyTurn,

@@ -607,7 +607,11 @@ int sendAll(int s, char *buf, int *len) {
 		}
 		
 		//printf("my turn? :%d\n",currGame.isMyTurn);
-		printGameState(game);
+		if (myTurn != 1)
+		{
+			printGameState(game);
+		}
+		
 	}
 
 	// if (oldMyTurn != currGame.isMyTurn)
@@ -616,7 +620,7 @@ int sendAll(int s, char *buf, int *len) {
 	// 	updateStaticParams();
 	// }
 
-	if (myTurn == 1)
+	if (myTurn == 1 && game.win == -1)
 	{	
 		printf("Your turn:\n");
 	}
@@ -641,6 +645,11 @@ void checkForNegativeValue(int num, char* func, int sock){
 }
 
 void createClientMsgBuff(struct clientMsg data, char* buf){
+	if (data.msg == 0)
+	{
+		data.msgTxt[0] ='a';
+		data.msgTxt[1] = '\0';
+	}
 	sprintf(buf, "{%d$%d$%d$%d$%d$%s}",
 	 data.heap,
 	 data.amount,
@@ -681,6 +690,11 @@ void createClientMsgBuff(struct clientMsg data, char* buf){
 }
 
 void createGameDataBuff(struct gameData data, char* buf){
+	if (data.msg == 0)
+	{
+		data.msgTxt[0] ='a';
+		data.msgTxt[1] = '\0';
+	}
 	sprintf(buf, "{%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%d$%s}",
 	 data.valid,
 	 data.isMyTurn,

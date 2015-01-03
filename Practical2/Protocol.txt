@@ -29,7 +29,6 @@ struct clientMsg{
 	char msgTxt[100];
 };
 
-
 Scenarios:
 
 ****************************
@@ -72,6 +71,8 @@ Server Response to client msg:
 
 
 		msg == 1:
+
+		****MSG will not be longer than 150 chars and will not have '}' in it.****
 
 		this is a msg, can be sent to the server at any time by any client.
 
@@ -116,12 +117,6 @@ Game over
 
 		valid = 1
 		win = <player id> - if on missery so this the player that lost.
-
-
-
-
-
-
 
 
 
